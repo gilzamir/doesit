@@ -1,8 +1,11 @@
-package gilzamir.doesit;
+package gilzamir.doesit.test;
 
 import com.jme3.app.SimpleApplication;
+import com.jme3.font.BitmapFont;
+import com.jme3.font.BitmapText;
 import com.jme3.material.Material;
 import com.jme3.math.ColorRGBA;
+import com.jme3.math.Vector3f;
 import com.jme3.renderer.RenderManager;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.shape.Box;
@@ -15,7 +18,7 @@ import java.awt.GraphicsEnvironment;
  * test
  * @author normenhansen
  */
-public class Main extends SimpleApplication {
+public class SimpleUserInterfaceGUI extends SimpleApplication {
 
     private static AppSettings settings;
     
@@ -23,14 +26,32 @@ public class Main extends SimpleApplication {
         settings = new AppSettings(true);
         settings.setTitle("Does it!");
         settings.setSettingsDialogImage("Interface/splashscreen.jpg");
-        settings.setUseInput(false);
-        Main app = new Main();
+        SimpleUserInterfaceGUI app = new SimpleUserInterfaceGUI();
         app.setSettings(settings);
         app.start();
     }
 
+    private float distance = 0;
+    BitmapText distanceText;
+    BitmapText fancyText;
+    
     @Override
     public void simpleInitApp() {
+        setDisplayStatView(false);
+        setDisplayFps(false);
+        
+        guiFont = assetManager.loadFont("Interface/Fonts/Default.fnt");
+        distanceText = new BitmapText(guiFont);
+        distanceText.setSize(guiFont.getCharSet().getRenderedSize());
+        distanceText.move(settings.getWidth()/2.0f, distanceText.getLineHeight(), 0);
+     
+        
+        BitmapFont customFont = assetManager.loadFont("Interface/Fonts/Constantia.fnt");
+        fancyText = new BitmapText(customFont);
+        
+        guiNode.attachChild(distanceText);
+        
+        
         Box b = new Box(1, 1, 1);
         Geometry geom = new Geometry("Box", b);
 
@@ -52,7 +73,8 @@ public class Main extends SimpleApplication {
     
     @Override
     public void simpleUpdate(float tpf) {
-        //TODO: add update code
+        distance = Vector3f.ZERO.distance(cam.getLocation());
+        distanceText.setText("Distance: " + distance);
     }
 
     @Override
