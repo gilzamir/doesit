@@ -1,0 +1,26 @@
+#NTEVersion 6
+#BeginNodes 5
+265 250
+engine.graphics.synthesis.texture.FilterNormalMap
+ExportName "NormalMap" Strength 2.875 endparameters
+362 491
+engine.graphics.synthesis.texture.FilterEmboss
+ExportName "DiffuseMap" Strength 5.0 Angle 22.5 endparameters
+610 236
+engine.graphics.synthesis.texture.FilterColorize
+ExportName "" Gray_to_Color_Mapping 2 0.0 0.0 0.0 1.0 0.019323671 0.2 0.0 0.8 1.0 0.057971016 endparameters
+581 371
+engine.graphics.synthesis.texture.FilterBlend
+ExportName "" Layer_Func. 0 Opacity 1.0 Inv._Alpha false endparameters
+480 170
+engine.graphics.synthesis.texture.PatternFunction
+ExportName "" Transformation 1.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0 Color_Mapping 3 0.0 0.0 0.0 1.0 0.062801935 0.0 0.2 1.0 1.0 0.12560387 1.0 1.0 1.0 1.0 1.0 FunctionU 0 FunctionV 0 Combiner 2 ScaleX 22.0 ScaleY 22.0 endparameters
+#EndNodes
+#BeginConnections 6
+2 3 1
+3 1 1
+0 3 0
+0 1 0
+4 0 0
+4 2 0
+#EndConnections

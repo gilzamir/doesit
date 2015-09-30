@@ -1,0 +1,31 @@
+Material MyMaterial : Common/MatDefs/Light/Lighting.j3md {
+    MaterialParameters {
+        DiffuseMap : Flip Repeat Textures/car/solar_panel.png
+        Minnaert : false
+        Specular : 1.0 1.0 1.0 1.0
+        Diffuse : 0.4 0.6 1.0 1.0
+        UseMaterialColors : true
+        ParallaxHeight : 0.05
+        Ambient : 0.0 0.0 0.0 1.0
+        Shininess : 20.0
+        WardIso : false
+        NormalMap : Flip Repeat Textures/car/solar_panel_normalmap.png
+        VertexLighting : true
+        VTangent : true
+        UseVertexColor : false
+        UseAlpha : false
+        LATC : false
+        HighQuality : false
+    }
+    AdditionalRenderState {
+      FaceCull Back
+      Wireframe Off
+      DepthWrite On
+      PolyOffset 0.0 0.0
+      AlphaTestFalloff 0.0
+      Blend Off
+      PointSprite Off
+      ColorWrite On
+      DepthTest On
+    }
+}
