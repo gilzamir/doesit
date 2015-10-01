@@ -19,7 +19,7 @@ import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
 import com.jme3.scene.shape.Box;
 
-public class SimulationApp extends SimpleApplication implements ActionListener {
+public class GameApp extends SimpleApplication implements ActionListener {
 
     private Node sceneNode;
     private BulletAppState bulletAppState;
@@ -79,16 +79,29 @@ public class SimulationApp extends SimpleApplication implements ActionListener {
         inputManager.addMapping("Grab", new KeyTrigger(KeyInput.KEY_G));
         inputManager.addMapping("Arm turn down", new KeyTrigger(KeyInput.KEY_DOWN));
         inputManager.addMapping("Arm turn up", new KeyTrigger(KeyInput.KEY_UP));
-        inputManager.addListener(this, "Rotate Left", "Rotate Right", "Arm turn left", "Arm turn down");
-        inputManager.addListener(this, "Rotate Left", "Rotate Right", "Arm turn right", "Arm turn up");
-        inputManager.addListener(this, "Forward", "Back", "Brake","Grab", "Arm turn down", "Arm turn up");
+        inputManager.addMapping("Cam turn down", new KeyTrigger(KeyInput.KEY_J));
+        inputManager.addMapping("Cam turn up", new KeyTrigger(KeyInput.KEY_U));
+        inputManager.addMapping("Cam turn right", new KeyTrigger(KeyInput.KEY_K));
+        inputManager.addMapping("Cam turn left", new KeyTrigger(KeyInput.KEY_H));
+        inputManager.addMapping("Shorten arm", new KeyTrigger(KeyInput.KEY_E));
+        inputManager.addMapping("Stretche arm", new KeyTrigger(KeyInput.KEY_R));
+        
+        inputManager.addListener(this, "Rotate Left", "Rotate Right",
+                "Arm turn left", "Arm turn down", "Stretche arm", "Shorten arm");
+        
+        inputManager.addListener(this, "Rotate Left", "Rotate Right",
+                "Arm turn right", "Arm turn up");
+        
+        inputManager.addListener(this, "Forward", "Back", "Brake","Grab",
+                "Arm turn down", "Arm turn up", "Cam turn down", "Cam turn up",
+                "Cam turn right", "Cam turn left");
     }
 
     private void configureObjects() {
-        rover = new DoesitRoverModern(400);
+        rover = new DoesitRoverModern(500);
         sceneNode = new Node("First Mission");
 
-        rover.initGeometry(this, sceneNode);
+        rover.setupGeometry(this, sceneNode);
 
         rootNode.attachChild(sceneNode);
 
@@ -113,12 +126,12 @@ public class SimulationApp extends SimpleApplication implements ActionListener {
         //PHYSICS CONFIGURATION
         bulletAppState = new BulletAppState();
         stateManager.attach(bulletAppState);
-        //bulletAppState.setDebugEnabled(true);
+       // bulletAppState.setDebugEnabled(true);
         bulletAppState.getPhysicsSpace().setGravity(new Vector3f(0.0f, -9.8f, 0.0f));
-        bulletAppState.getPhysicsSpace().setAccuracy(0.016f);
+        bulletAppState.getPhysicsSpace().setAccuracy(0.007f);
 
         //ROVER CONFIGURATION
-        rover.initPhysics(bulletAppState);
+        rover.setupPhysics(bulletAppState);
 
         //ROCK CONFIGURATION
         for (int i = 0; i < numberOfRocks; i++) {
@@ -159,17 +172,6 @@ public class SimulationApp extends SimpleApplication implements ActionListener {
         rootNode.addLight(sun4);
     }
 
-    /*
-     protected void configureCamera() {
-     camNode = new CameraNode("CamNode", cam);
-     camNode.setControlDir(CameraControl.ControlDirection.SpatialToCamera);
-     camNode.setLocalTranslation(new Vector3f(0, 4, -6));
-     Quaternion quat = new Quaternion();
-     quat.lookAt(Vector3f.UNIT_Z, Vector3f.UNIT_Y);
-     camNode.setLocalRotation(quat);
-     playerNode.attachChild(camNode);
-     flyCam.setEnabled(false);
-     }*/
     public void onAction(String name, boolean isPressed, float tpf) {
 
         if (name.equals("Rotate Left")) {
@@ -228,6 +230,30 @@ public class SimulationApp extends SimpleApplication implements ActionListener {
                 rover.grabberGrab();
             } else {
                 rover.grabberDrop();
+            }
+        } else if (name.equals("Cam turn down")) {
+            if (isPressed) {
+                rover.cameraTurnDown();
+            }
+        } else if (name.equals("Cam turn up")) {
+            if (isPressed) {
+                rover.cameraTurnUp();
+            }
+        } else if (name.equals("Cam turn right")) {
+            if (isPressed) {
+                rover.cameraTurnRight();
+            }
+        } else if (name.equals("Cam turn left")) {
+            if (isPressed) {
+                rover.cameraTurnLeft();
+            }
+        } else if (name.equals("Stretche arm")) {
+            if (isPressed) {
+                rover.sketcheArm();
+            }
+        } else if (name.equals("Shorten arm")){
+            if (isPressed) {
+                rover.shortenArm();
             }
         }
     }

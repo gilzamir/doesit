@@ -6,7 +6,7 @@ import com.jme3.system.AppSettings;
     private Main(){}
     
     public static void main(String[] args) {
-        SimulationApp app = new SimulationApp();
+        GameApp app = new GameApp();
       
         app.start();
     }
