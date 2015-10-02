@@ -98,7 +98,7 @@ public class GameApp extends SimpleApplication implements ActionListener {
     }
 
     private void configureObjects() {
-        rover = new DoesitRoverModern(500);
+        rover = new DoesitRoverModern(500, 1000);
         sceneNode = new Node("First Mission");
 
         rover.setupGeometry(this, sceneNode);

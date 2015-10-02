@@ -19,16 +19,17 @@ import com.jme3.bullet.control.VehicleControl;
 import com.jme3.bullet.util.CollisionShapeFactory;
 import com.jme3.math.FastMath;
 import com.jme3.math.Quaternion;
+import com.jme3.math.Transform;
 import com.jme3.math.Vector3f;
 import com.jme3.renderer.Camera;
 import com.jme3.renderer.ViewPort;
+import com.jme3.renderer.queue.RenderQueue;
 import com.jme3.scene.CameraNode;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
 import com.jme3.scene.VertexBuffer;
 import com.jme3.scene.control.CameraControl;
-import java.nio.Buffer;
 import java.nio.FloatBuffer;
 import java.util.ArrayList;
 
@@ -65,11 +66,19 @@ public class DoesitRoverModern implements RagdollCollisionListener, PhysicsTickL
     private Vector3f camPosition;
     private Vector3f roverPosition;
     
-    public DoesitRoverModern(float chassiMass) {
+    private Vector3f colorResult = new Vector3f(0,0,0);
+    private SimulationApp simulation = null;
+    
+    private float energy;
+    private float energyEfficiency;
+    
+    public DoesitRoverModern(float chassiMass, float initialEnergy) {
         this.mass = chassiMass;
         this.armPosition = new Vector3f(-0.7f, 1.0f, -1.6f);
         this.camPosition = new Vector3f(-0.7f, 0.5f, 0.5f);
         this.roverPosition = new Vector3f(-25.0f, 2.5f, 10.0f);
+        this.energy = initialEnergy;
+        this.energyEfficiency = 1.0f;
     }
 
     public void setArmPosition(float x, float y, float z) {
@@ -97,6 +106,10 @@ public class DoesitRoverModern implements RagdollCollisionListener, PhysicsTickL
      */
     public void setupGeometry(SimpleApplication app, Node rootNode) {
        
+        if (app instanceof SimulationApp) {
+            simulation = (SimulationApp) app;
+        }
+        
         Node model = (Node)app.getAssetManager().loadModel("/Models/doesithover/car.j3o");
         roverNode = (Node) model.getChild("chassi");
         
@@ -129,17 +142,20 @@ public class DoesitRoverModern implements RagdollCollisionListener, PhysicsTickL
         roverNode.move(this.roverPosition);
         rootNode.attachChild(roverNode);        
         setupCamera(app, rootNode);
+        roverNode.setShadowMode(RenderQueue.ShadowMode.CastAndReceive);
     }
     
     private void setupCamera(SimpleApplication app, Node rootNode) {
-        cam = app.getCamera().clone();
-        cam.setViewPort(0f, 0.5f, 0, 0.5f);
-        app.getCamera().setViewPort(0.51f, 1.0f, 0.51f, 1.0f);
+    /*    cam = app.getCamera().clone();
+        cam.setViewPort(0f, 0.1f, 0, 0.1f);
         viewPort = app.getRenderManager()
                 .createMainView("Bottom Left", cam);
         viewPort.setClearFlags(true, true, true);
         viewPort.setBackgroundColor(app.getViewPort().getBackgroundColor());
         viewPort.attachScene(rootNode);
+        
+        app.getCamera().setViewPort(0.0f, 1.0f, 0.0f, 1.0f);
+        
         
         camNode = new CameraNode("CamNode", cam);
         camNode.setControlDir(CameraControl.ControlDirection.SpatialToCamera);
@@ -147,7 +163,7 @@ public class DoesitRoverModern implements RagdollCollisionListener, PhysicsTickL
         Quaternion quat = new Quaternion();
         quat.lookAt(Vector3f.UNIT_Z, Vector3f.UNIT_Y);
         camNode.setLocalRotation(quat);
-        roverCamModelNode.attachChild(camNode);
+        roverCamModelNode.attachChild(camNode);*/
     }
 
     /**
@@ -228,113 +244,125 @@ public class DoesitRoverModern implements RagdollCollisionListener, PhysicsTickL
         
     }
 
-    public void armTurnLeft() { 
-        String bone = "root";
-         float MIN = -FastMath.DEG_TO_RAD * 165;
-        
-        float lmax = FastMath.DEG_TO_RAD * 25, lmin = -FastMath.DEG_TO_RAD * 10;
-        if (armArmBoneRotation.x > lmax || armArmBoneRotation.x < lmin) {
-            MIN = -FastMath.DEG_TO_RAD * 45;
-        }
-        armRootBoneRotation.z -= 0.1; 
-        if (armRootBoneRotation.z < MIN) {
-            armRootBoneRotation.z = MIN;
-        }
-        
-        Quaternion rot = new Quaternion().fromAngles(armRootBoneRotation.getX(),
-                armRootBoneRotation.getY(), armRootBoneRotation.getZ());
-
-
-        Vector3f trans = armModelNode.getLocalTranslation();
-
-        armAnimControl.getSkeleton().getBone(bone).setUserControl(true);
-        
-        armAnimControl.getSkeleton().getBone(bone).setUserTransforms(
-                trans,
-                rot,
-                Vector3f.UNIT_XYZ);
-        
-    }
-
-    public void armTurnRight() { 
-        float MAX = FastMath.DEG_TO_RAD * 165;
-        
-        float lmax = FastMath.DEG_TO_RAD * 25, lmin = -FastMath.DEG_TO_RAD * 10;
-        if (armArmBoneRotation.x > lmax || armArmBoneRotation.x < lmin) {
-            MAX = FastMath.DEG_TO_RAD * 45;
-        }
-
-        String bone = "root";
-        armRootBoneRotation.z += 0.1;
-        if (armRootBoneRotation.z > MAX ) {
-            armRootBoneRotation.z = MAX;
-        }
-        Quaternion rot = new Quaternion().fromAngles(armRootBoneRotation.getX(),
-                armRootBoneRotation.getY(), armRootBoneRotation.getZ());
-
-
-        Vector3f trans = armModelNode.getLocalTranslation();
-        
-        armAnimControl.getSkeleton().getBone(bone).setUserControl(true);
-        armAnimControl.getSkeleton().getBone(bone).setUserTransforms(
-                trans,
-                rot,
-                Vector3f.UNIT_XYZ);
+    public float getEnergy() {
+        return energy;
     }
     
-    public void armTurnDown() { 
-        float MAX = FastMath.DEG_TO_RAD * 50;
-        
-        float l = FastMath.DEG_TO_RAD * 48;
-        if (armRootBoneRotation.z < -l  || armRootBoneRotation.z > l) {
-            MAX = FastMath.DEG_TO_RAD * 10;
+    public void armTurnLeft() {
+        if (reserveArmMovementEnergy()) {
+            String bone = "root";
+            float MIN = -FastMath.DEG_TO_RAD * 165;
+
+            float lmax = FastMath.DEG_TO_RAD * 25, lmin = -FastMath.DEG_TO_RAD * 10;
+            if (armArmBoneRotation.x > lmax || armArmBoneRotation.x < lmin) {
+                MIN = -FastMath.DEG_TO_RAD * 45;
+            }
+            armRootBoneRotation.z -= 0.1;
+            if (armRootBoneRotation.z < MIN) {
+                armRootBoneRotation.z = MIN;
+            }
+
+            Quaternion rot = new Quaternion().fromAngles(armRootBoneRotation.getX(),
+                    armRootBoneRotation.getY(), armRootBoneRotation.getZ());
+
+
+            Vector3f trans = armModelNode.getLocalTranslation();
+
+            armAnimControl.getSkeleton().getBone(bone).setUserControl(true);
+
+            armAnimControl.getSkeleton().getBone(bone).setUserTransforms(
+                    trans,
+                    rot,
+                    Vector3f.UNIT_XYZ);
         }
-        
-        String bone = "arm";
-       
-        
-        armArmBoneRotation.x += 0.1;
-        if (armArmBoneRotation.x > MAX) {
-            armArmBoneRotation.x = MAX;
-        }
-        
-        Quaternion rot = new Quaternion().fromAngles(armArmBoneRotation.getX(),
-                armArmBoneRotation.getY(), armArmBoneRotation.getZ());
-
-
-        Vector3f trans = armModelNode.getLocalTranslation();
-
-        armAnimControl.getSkeleton().getBone(bone).setUserControl(true);
-       
-        armAnimControl.getSkeleton().getBone(bone).setUserTransforms(
-                trans,
-                rot,
-                armScale);
     }
 
-    public void armTurnUp() { 
-        float MIN = -FastMath.DEG_TO_RAD * 10;
-       
-        
-        String bone = "arm";
-        armArmBoneRotation.x -= 0.1;
-        if (armArmBoneRotation.x < MIN) {
-            armArmBoneRotation.x = MIN;
+    public void armTurnRight() {
+        if (reserveArmMovementEnergy()) {
+            float MAX = FastMath.DEG_TO_RAD * 165;
+
+            float lmax = FastMath.DEG_TO_RAD * 25, lmin = -FastMath.DEG_TO_RAD * 10;
+            if (armArmBoneRotation.x > lmax || armArmBoneRotation.x < lmin) {
+                MAX = FastMath.DEG_TO_RAD * 45;
+            }
+
+            String bone = "root";
+            armRootBoneRotation.z += 0.1;
+            if (armRootBoneRotation.z > MAX) {
+                armRootBoneRotation.z = MAX;
+            }
+            Quaternion rot = new Quaternion().fromAngles(armRootBoneRotation.getX(),
+                    armRootBoneRotation.getY(), armRootBoneRotation.getZ());
+
+
+            Vector3f trans = armModelNode.getLocalTranslation();
+
+            armAnimControl.getSkeleton().getBone(bone).setUserControl(true);
+            armAnimControl.getSkeleton().getBone(bone).setUserTransforms(
+                    trans,
+                    rot,
+                    Vector3f.UNIT_XYZ);
         }
-        Quaternion rot = new Quaternion().fromAngles(armArmBoneRotation.getX(),
-                armArmBoneRotation.getY(), armArmBoneRotation.getZ());
+    }
+    
+    public void armTurnDown() {
+        if (reserveArmMovementEnergy()) {
+            float MAX = FastMath.DEG_TO_RAD * 50;
+
+            float l = FastMath.DEG_TO_RAD * 48;
+            if (armRootBoneRotation.z < -l || armRootBoneRotation.z > l) {
+                MAX = FastMath.DEG_TO_RAD * 10;
+            }
+
+            String bone = "arm";
 
 
-        Vector3f trans = armModelNode.getLocalTranslation();
+            armArmBoneRotation.x += 0.1;
+            if (armArmBoneRotation.x > MAX) {
+                armArmBoneRotation.x = MAX;
+            }
 
-        armAnimControl.getSkeleton().getBone(bone).setUserControl(true);
-        armAnimControl.getSkeleton().getBone(bone).setUserTransforms(
-                trans,
-                rot,
-                armScale);
+            Quaternion rot = new Quaternion().fromAngles(armArmBoneRotation.getX(),
+                    armArmBoneRotation.getY(), armArmBoneRotation.getZ());
+
+
+            Vector3f trans = armModelNode.getLocalTranslation();
+
+            armAnimControl.getSkeleton().getBone(bone).setUserControl(true);
+
+            armAnimControl.getSkeleton().getBone(bone).setUserTransforms(
+                    trans,
+                    rot,
+                    armScale);
+        }
+    }
+
+    public void armTurnUp() {
+        if (reserveArmMovementEnergy()) {
+            float MIN = -FastMath.DEG_TO_RAD * 10;
+
+
+            String bone = "arm";
+            armArmBoneRotation.x -= 0.1;
+            if (armArmBoneRotation.x < MIN) {
+                armArmBoneRotation.x = MIN;
+            }
+            Quaternion rot = new Quaternion().fromAngles(armArmBoneRotation.getX(),
+                    armArmBoneRotation.getY(), armArmBoneRotation.getZ());
+
+
+            Vector3f trans = armModelNode.getLocalTranslation();
+
+            armAnimControl.getSkeleton().getBone(bone).setUserControl(true);
+            armAnimControl.getSkeleton().getBone(bone).setUserTransforms(
+                    trans,
+                    rot,
+                    armScale);
+        }
     }
     
     public void grabberGrab() {
+        if (reserveArmMovementEnergy()) {
             grabberOpened = true;
             Quaternion rot = new Quaternion().fromAngles(-FastMath.DEG_TO_RAD * 90,
                     0, 0);
@@ -344,178 +372,189 @@ public class DoesitRoverModern implements RagdollCollisionListener, PhysicsTickL
 
             armAnimControl.getSkeleton().getBone("finger").setUserControl(true);
             armAnimControl.getSkeleton().getBone("finger").setUserTransforms(
-                      trans,
-                      rot,
-                      Vector3f.UNIT_XYZ
-                    );
+                    trans,
+                    rot,
+                    Vector3f.UNIT_XYZ);
             grabberOpened = true;
+        }
     }
     
     public void grabberDrop() {
-        grabberOpened = false;
-        grabbedObject = null;
-        Quaternion rot = new Quaternion().fromAngles(0,
-                0, 0);
+        if (reserveArmMovementEnergy()) {
+            grabberOpened = false;
+            grabbedObject = null;
+            Quaternion rot = new Quaternion().fromAngles(0,
+                    0, 0);
 
 
-        Vector3f trans = armModelNode.getLocalTranslation();
+            Vector3f trans = armModelNode.getLocalTranslation();
 
-        armAnimControl.getSkeleton().getBone("finger").setUserControl(true);
-        armAnimControl.getSkeleton().getBone("finger").setUserTransforms(
-                trans,
-                rot,
-                Vector3f.UNIT_XYZ);       
-    }
-
-    
-    public void cameraTurnUp() { 
-        float MIN = FastMath.DEG_TO_RAD * -40;
-        
-        String boneName = "head";
-       
-        Bone bone = camAnimControl.getSkeleton().getBone(boneName);
-        bone.setUserControl(true);
-        
-
-        camHeadBoneRotation.x -= 0.1;
-        if (camHeadBoneRotation.x < MIN) {
-            camHeadBoneRotation.x = MIN;
+            armAnimControl.getSkeleton().getBone("finger").setUserControl(true);
+            armAnimControl.getSkeleton().getBone("finger").setUserTransforms(
+                    trans,
+                    rot,
+                    Vector3f.UNIT_XYZ);
         }
-        
-        Quaternion rot = new Quaternion().fromAngles(camHeadBoneRotation.x, 
-                camHeadBoneRotation.y, camHeadBoneRotation.z);
-        Quaternion camNodeRot = new Quaternion().fromAngles(camHeadBoneRotation.x, 
-                camHeadBoneRotation.z, camHeadBoneRotation.y);
-        
-        Vector3f trans = new Vector3f(0,0,0);
-        camNode.setLocalRotation(camNodeRot);
-        bone.setUserTransforms(
-                trans,
-                rot,
-                Vector3f.UNIT_XYZ);
     }
-    
-    public void cameraTurnDown() { 
-        float MAX = FastMath.DEG_TO_RAD * 30;
-        
-        String boneName = "head";
-       
-        Bone bone = camAnimControl.getSkeleton().getBone(boneName);
-        bone.setUserControl(true);
-        
 
-        camHeadBoneRotation.x += 0.1;
-        if (camHeadBoneRotation.x > MAX) {
-            camHeadBoneRotation.x = MAX;
-        }
-        
-        Quaternion rot = new Quaternion().fromAngles(camHeadBoneRotation.x, 
-                camHeadBoneRotation.y, camHeadBoneRotation.z);
-        Quaternion camNodeRot = new Quaternion().fromAngles(camHeadBoneRotation.x, 
-                camHeadBoneRotation.z, camHeadBoneRotation.y);
-        
-        Vector3f trans = new Vector3f(0,0,0);
-        camNode.setLocalRotation(camNodeRot);
-        bone.setUserTransforms(
-                trans,
-                rot,
-                Vector3f.UNIT_XYZ);
-    }
     
-    public void cameraTurnRight() { 
-        float MIN = FastMath.DEG_TO_RAD * -40;
-        
-        String boneName = "head";
-       
-        Bone bone = camAnimControl.getSkeleton().getBone(boneName);
-        bone.setUserControl(true);
-        
+    public void cameraTurnUp() {
+        if (reserveCameraMovementEnergy()) {
+            float MIN = FastMath.DEG_TO_RAD * -40;
 
-        camHeadBoneRotation.z -= 0.1;
-        if (camHeadBoneRotation.z < MIN) {
-            camHeadBoneRotation.z = MIN;
-        }
-        
-        Quaternion rot = new Quaternion().fromAngles(camHeadBoneRotation.x, 
-                camHeadBoneRotation.y, camHeadBoneRotation.z);
-        Quaternion camNodeRot = new Quaternion().fromAngles(camHeadBoneRotation.x, 
-                camHeadBoneRotation.z, camHeadBoneRotation.y);
-                
-        Vector3f trans = new Vector3f(0,0,0);
-        camNode.setLocalRotation(camNodeRot);
-        bone.setUserTransforms(
-                trans,
-                rot,
-                Vector3f.UNIT_XYZ);
-    }
-    
-    public void cameraTurnLeft() { 
-        float MAX = FastMath.DEG_TO_RAD * 30;
-        
-        String boneName = "head";
-       
-        Bone bone = camAnimControl.getSkeleton().getBone(boneName);
-        bone.setUserControl(true);
-        
+            String boneName = "head";
 
-        camHeadBoneRotation.z += 0.1;
-        if (camHeadBoneRotation.z > MAX) {
-            camHeadBoneRotation.z = MAX;
+            Bone bone = camAnimControl.getSkeleton().getBone(boneName);
+            bone.setUserControl(true);
+
+
+            camHeadBoneRotation.x -= 0.1;
+            if (camHeadBoneRotation.x < MIN) {
+                camHeadBoneRotation.x = MIN;
+            }
+
+            Quaternion rot = new Quaternion().fromAngles(camHeadBoneRotation.x,
+                    camHeadBoneRotation.y, camHeadBoneRotation.z);
+            Quaternion camNodeRot = new Quaternion().fromAngles(camHeadBoneRotation.x,
+                    camHeadBoneRotation.z, camHeadBoneRotation.y);
+
+            Vector3f trans = new Vector3f(0, 0, 0);
+            camNode.setLocalRotation(camNodeRot);
+            bone.setUserTransforms(
+                    trans,
+                    rot,
+                    Vector3f.UNIT_XYZ);
         }
-        
-        Quaternion rot = new Quaternion().fromAngles(camHeadBoneRotation.x, 
-                camHeadBoneRotation.y, camHeadBoneRotation.z);
-        
-        Quaternion camNodeRot = new Quaternion().fromAngles(camHeadBoneRotation.x, 
-                camHeadBoneRotation.z, camHeadBoneRotation.y);
-        
-        
-        Vector3f trans = new Vector3f(0,0,0);
-        
-        camNode.setLocalRotation(camNodeRot);
-        bone.setUserTransforms(
-                trans,
-                rot,
-                Vector3f.UNIT_XYZ);
     }
     
+    public void cameraTurnDown() {
+        if (reserveCameraMovementEnergy()) {
+            float MAX = FastMath.DEG_TO_RAD * 30;
+
+            String boneName = "head";
+
+            Bone bone = camAnimControl.getSkeleton().getBone(boneName);
+            bone.setUserControl(true);
+
+
+            camHeadBoneRotation.x += 0.1;
+            if (camHeadBoneRotation.x > MAX) {
+                camHeadBoneRotation.x = MAX;
+            }
+
+            Quaternion rot = new Quaternion().fromAngles(camHeadBoneRotation.x,
+                    camHeadBoneRotation.y, camHeadBoneRotation.z);
+            Quaternion camNodeRot = new Quaternion().fromAngles(camHeadBoneRotation.x,
+                    camHeadBoneRotation.z, camHeadBoneRotation.y);
+
+            Vector3f trans = new Vector3f(0, 0, 0);
+            camNode.setLocalRotation(camNodeRot);
+            bone.setUserTransforms(
+                    trans,
+                    rot,
+                    Vector3f.UNIT_XYZ);
+        }
+    }
+    
+    public void cameraTurnRight() {
+        if (reserveCameraMovementEnergy()) {
+            float MIN = FastMath.DEG_TO_RAD * -40;
+
+            String boneName = "head";
+
+            Bone bone = camAnimControl.getSkeleton().getBone(boneName);
+            bone.setUserControl(true);
+
+
+            camHeadBoneRotation.z -= 0.1;
+            if (camHeadBoneRotation.z < MIN) {
+                camHeadBoneRotation.z = MIN;
+            }
+
+            Quaternion rot = new Quaternion().fromAngles(camHeadBoneRotation.x,
+                    camHeadBoneRotation.y, camHeadBoneRotation.z);
+            Quaternion camNodeRot = new Quaternion().fromAngles(camHeadBoneRotation.x,
+                    camHeadBoneRotation.z, camHeadBoneRotation.y);
+
+            Vector3f trans = new Vector3f(0, 0, 0);
+            camNode.setLocalRotation(camNodeRot);
+            bone.setUserTransforms(
+                    trans,
+                    rot,
+                    Vector3f.UNIT_XYZ);
+        }
+    }
+    
+    public void cameraTurnLeft() {
+        if (reserveCameraMovementEnergy()) {
+            float MAX = FastMath.DEG_TO_RAD * 30;
+
+            String boneName = "head";
+
+            Bone bone = camAnimControl.getSkeleton().getBone(boneName);
+            bone.setUserControl(true);
+
+
+            camHeadBoneRotation.z += 0.1;
+            if (camHeadBoneRotation.z > MAX) {
+                camHeadBoneRotation.z = MAX;
+            }
+
+            Quaternion rot = new Quaternion().fromAngles(camHeadBoneRotation.x,
+                    camHeadBoneRotation.y, camHeadBoneRotation.z);
+
+            Quaternion camNodeRot = new Quaternion().fromAngles(camHeadBoneRotation.x,
+                    camHeadBoneRotation.z, camHeadBoneRotation.y);
+
+
+            Vector3f trans = new Vector3f(0, 0, 0);
+
+            camNode.setLocalRotation(camNodeRot);
+            bone.setUserTransforms(
+                    trans,
+                    rot,
+                    Vector3f.UNIT_XYZ);
+        }
+    }
     
     public void sketcheArm() {
+        if (reserveArmMovementEnergy()) {
             Bone bone = armAnimControl.getSkeleton().getBone("arm");
-        
+
             Vector3f trans = this.armModelNode.getLocalTranslation();
             Quaternion qu = this.armModelNode.getLocalRotation();
-            
+
             armScale.z += 0.1;
             if (armScale.z > 1.3f) {
                 armScale.z = 1.3f;
             }
-            
+
             bone.setUserControl(true);
             bone.setUserTransforms(
-                      trans,
-                      qu,
-                      armScale
-                    );    
+                    trans,
+                    qu,
+                    armScale);
+        }
     }
     
     public void shortenArm() {
+        if (reserveArmMovementEnergy()) {
             Bone bone = armAnimControl.getSkeleton().getBone("arm");
-        
+
             Vector3f trans = this.armModelNode.getLocalTranslation();
             Quaternion qu = this.armModelNode.getLocalRotation();
-            
+
             armScale.z -= 0.1;
             if (armScale.z < 0.5f) {
                 armScale.z = 0.5f;
             }
-            
+
             bone.setUserControl(true);
             bone.setUserTransforms(
-                      trans,
-                      qu,
-                      armScale
-                    );
+                    trans,
+                    qu,
+                    armScale);
+        }
     }
     
     /**
@@ -527,15 +566,21 @@ public class DoesitRoverModern implements RagdollCollisionListener, PhysicsTickL
     }
 
     public void brake(float force) {
-        roverControl.brake(force);
+        if (reserveMovementEnergy()) {
+            roverControl.brake(force);
+        }
     }
 
     public void accelerate(float value) {
-        roverControl.accelerate(value);
+        if (reserveMovementEnergy()) {
+            roverControl.accelerate(value);
+        }
     }
     
     public void steer(float value) {
-        roverControl.steer(value);
+        if (reserveMovementEnergy()) {
+            roverControl.steer(value);
+        }
     }
     
     public VehicleControl getControl() {
@@ -548,6 +593,49 @@ public class DoesitRoverModern implements RagdollCollisionListener, PhysicsTickL
             pos = pos.add(new Vector3f(0,-1,0));
             grabbedObject.setPhysicsLocation(pos);
         }
+        if (simulation != null) {
+             energy += getReceivedEnergy();
+        }
+    }
+    
+    private Vector3f tmpPos = new Vector3f(0,0,0), tmpNorm = new Vector3f(0,0,0);
+    private Vector3f storePos = new Vector3f(0,0,0), storeNorm = new Vector3f(0,0,0);
+    
+    private float getReceivedEnergy() {
+        Transform transform = roverNode.getWorldTransform();
+        
+        float e = 0.0f;
+        Geometry g = (Geometry)roverNode.getChild("chassi2");
+        
+        FloatBuffer posBuf = g.getMesh().getFloatBuffer(VertexBuffer.Type.Position);
+        FloatBuffer norBuf = g.getMesh().getFloatBuffer(VertexBuffer.Type.Normal);
+        
+        posBuf.rewind();
+        norBuf.rewind();
+        while (posBuf.hasRemaining()) {
+            float px = posBuf.get();
+            float py = posBuf.get();
+            float pz = posBuf.get();
+        
+            float nx = norBuf.get();
+            float ny = norBuf.get();
+            float nz = norBuf.get();
+            tmpPos.x = px;
+            tmpPos.y = py;
+            tmpPos.z = pz;
+            tmpNorm.x = nx;
+            tmpNorm.y = ny;
+            tmpNorm.z = nz;
+            
+            transform.transformVector(tmpPos, storePos);
+            storeNorm = transform.getRotation().mult(tmpNorm);
+            
+            simulation.getColorOf(g.getMaterial(), storePos, storeNorm, colorResult);
+            
+            e += colorResult.z;
+        }
+        System.out.println(e);
+        return e * energyEfficiency;
     }
     
     public void collide(Bone bone, PhysicsCollisionObject object, PhysicsCollisionEvent event) {
@@ -570,5 +658,36 @@ public class DoesitRoverModern implements RagdollCollisionListener, PhysicsTickL
     }
 
     public void physicsTick(PhysicsSpace space, float tpf) {
+    }
+    
+    protected boolean reserveCameraMovementEnergy() {
+        final float neccessary = 2.0f;
+        if (energy > neccessary) {
+            energy -= neccessary;
+            return true;
+        } else {
+            return false;
+        }
+    }
+    
+
+    protected boolean reserveArmMovementEnergy() {
+        final float neccessary = 5.0f;
+        if (energy > neccessary) {
+            energy -= neccessary;
+            return true;
+        } else {
+            return false;
+        }
+    }
+    
+    protected boolean reserveMovementEnergy() {
+        final float neccessary = 3.0f;
+        if (energy > neccessary) {
+            energy -= neccessary;
+            return true;
+        } else {
+            return false;
+        }
     }
 }

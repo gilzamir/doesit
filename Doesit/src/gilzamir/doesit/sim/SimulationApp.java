@@ -4,20 +4,15 @@ import com.jme3.app.SimpleApplication;
 import com.jme3.bullet.BulletAppState;
 import com.jme3.bullet.collision.shapes.BoxCollisionShape;
 import com.jme3.bullet.control.RigidBodyControl;
-import com.jme3.font.BitmapFont;
 import com.jme3.font.BitmapText;
 import com.jme3.input.KeyInput;
 import com.jme3.input.controls.ActionListener;
 import com.jme3.input.controls.KeyTrigger;
-import com.jme3.light.AmbientLight;
 import com.jme3.light.DirectionalLight;
-import com.jme3.light.Light;
 import com.jme3.material.Material;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.FastMath;
-import com.jme3.math.Quaternion;
 import com.jme3.math.Vector3f;
-import com.jme3.post.FilterPostProcessor;
 import com.jme3.renderer.Camera;
 import com.jme3.renderer.queue.RenderQueue;
 import com.jme3.scene.Geometry;
@@ -25,9 +20,6 @@ import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
 import com.jme3.scene.shape.Box;
 import com.jme3.scene.shape.Sphere;
-import com.jme3.shadow.DirectionalLightShadowFilter;
-import com.jme3.shadow.DirectionalLightShadowRenderer;
-import com.jme3.shadow.EdgeFilteringMode;
 
 public class SimulationApp extends SimpleApplication implements ActionListener {
 
@@ -44,13 +36,8 @@ public class SimulationApp extends SimpleApplication implements ActionListener {
     private Camera mainCamera;
     private Geometry rockGeo[];
     private final int numberOfRocks=50;
-    private DirectionalLight sunLight;
-    private AmbientLight ambientLight;
     BitmapText hoverEnergyText;
-    private Geometry sunModel;
-    private Node sun;
-    private float sunRotation = 0.0f;
-    private long lastTime;
+    WorldTimeState worldTimeState;
     
     @Override
     public void simpleInitApp() {
@@ -60,39 +47,28 @@ public class SimulationApp extends SimpleApplication implements ActionListener {
         hoverEnergyText = new BitmapText(guiFont);
         hoverEnergyText.setSize(guiFont.getCharSet().getRenderedSize());
         hoverEnergyText.move(settings.getWidth()/2.0f, hoverEnergyText.getLineHeight(), 0);
-        lastTime = System.currentTimeMillis();
-        
+
         guiNode.attachChild(hoverEnergyText);
+        
+        worldTimeState = new WorldTimeState();
+        stateManager.attach(worldTimeState);
         
         configureSky();
        // configureCamera();
         configureObjects();
-        configureLight();
         configurePhysics();
        // configureNavigationKey();
     }
 
-    private Quaternion sunQuat = new Quaternion();
-    private Vector3f sunPos = new Vector3f(0,0,0);
     @Override
     public void simpleUpdate(float tpf) {
         hoverEnergyText.setText("Hover Energy: " + rover.getEnergy());
         //updateCam();
-      //  rover.update(tpf);
-        final long updateTime = 200;
-        long currentTime = System.currentTimeMillis();
-        long delta = currentTime - lastTime;
-        if (delta > updateTime){
-            lastTime = currentTime;
-            sunRotation += 0.009f;
-            
-            if (sunRotation >= 2 * FastMath.PI) {
-                sunRotation = 0.0f;
-            }
-            
-          sun.setLocalRotation(sunQuat.fromAngles(0, 0 , sunRotation));
-          updateLights();
-        }
+       //  rover.update(tpf);
+    }
+
+    public Node getSceneNode() {
+        return sceneNode;
     }
     
     private void updateCam() {
@@ -144,19 +120,7 @@ public class SimulationApp extends SimpleApplication implements ActionListener {
 
     private void configureObjects() {
         sceneNode = new Node("First Mission");
-
-        Material sunMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-            sunMat.setColor("Color", ColorRGBA.Yellow);
             
-        Sphere sphere = new Sphere(16, 16, 1.0f);
-        sunModel = new Geometry("Sun",sphere);
-        sunModel.setMaterial(sunMat);
-        sun = new Node("Sun");
-        sun.attachChild(sunModel);
-        sceneNode.attachChild(sun);
-        
-        sunModel.setLocalTranslation(0, 400, 0);
-        
         rover = new DoesitRoverModern(500, 1000);
         
         rover.setupGeometry(this, sceneNode);
@@ -212,61 +176,9 @@ public class SimulationApp extends SimpleApplication implements ActionListener {
         viewPort.setBackgroundColor(new ColorRGBA(0.9f, 0.8f, 0.8f, 1.0f));
     }
     
-    private void configureLight() {
-        
-
-        ambientLight = new AmbientLight();
-        rootNode.addLight(ambientLight);
-        
-        sunLight = new DirectionalLight();
-        rootNode.addLight(sunLight);
-        updateLights();
-                final int SHADOW_MAP_SIZE = 1024;
-        DirectionalLightShadowRenderer dlsr  = new DirectionalLightShadowRenderer(assetManager,
-                SHADOW_MAP_SIZE, 4);
-        dlsr.setLight(sunLight);
-        viewPort.addProcessor(dlsr);
-        
-        DirectionalLightShadowFilter dlsf = new DirectionalLightShadowFilter(assetManager, SHADOW_MAP_SIZE, 4);
-        dlsf.setLight(sunLight);
-        dlsf.setEnabled(true);
-        FilterPostProcessor fpp = new FilterPostProcessor(assetManager);
-        fpp.addFilter(dlsf);
-        viewPort.addProcessor(fpp);
-    }
-    
-    private void updateLights() {
-        Vector3f from = sunModel.getWorldTranslation();
-        Vector3f to = sun.getWorldTranslation();
-        sunLight.setDirection(to.subtract(from).normalize());
-    }
-
     public Vector3f getColorOf(Material mat, Vector3f pos, Vector3f normal, 
             Vector3f result) {
-        ColorRGBA diffuse = (ColorRGBA)mat.getParam("Diffuse").getValue();
-        ColorRGBA ambient = (ColorRGBA)mat.getParam("Ambient").getValue();
-        normal.normalizeLocal();
-        result.x = 0;
-        result.y = 0;
-        result.z = 0;
-        
-        ColorRGBA lamb = ambientLight.getColor();
-        
-        result.x = ambient.r * lamb.r;
-        result.y = ambient.g * lamb.g;
-        result.z = ambient.b * lamb.b;
-        
-
-        DirectionalLight l = sunLight;
-        Vector3f ldir = l.getDirection();
-        ColorRGBA lcolor = l.getColor();
-        float alfa = normal.dot(ldir);
-        alfa = Math.max(0.0f, Math.min(alfa, 1.0f));
-        result.x += lcolor.getRed() * alfa * diffuse.getRed();
-        result.y += lcolor.getGreen() * alfa * diffuse.getGreen();
-        result.z += lcolor.getBlue() * alfa * diffuse.getBlue();
-        
-        return result;
+        return worldTimeState.getColorOf(mat, pos, normal, result);
     }
     
     public void onAction(String name, boolean isPressed, float tpf) {
