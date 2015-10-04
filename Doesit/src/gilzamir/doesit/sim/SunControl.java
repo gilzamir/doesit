@@ -28,7 +28,7 @@ public class SunControl extends AbstractControl {
             sunRotation += 0.009f;
 
             if (sunRotation >= 2 * FastMath.PI) {
-                sunRotation = 0.0f;
+                sunRotation = (sunRotation - 2 * FastMath.PI);
             }
 
             spatial.setLocalRotation(sunQuat.fromAngles(0, 0, sunRotation));
