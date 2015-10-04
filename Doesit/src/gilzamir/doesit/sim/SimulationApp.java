@@ -8,7 +8,6 @@ import com.jme3.font.BitmapText;
 import com.jme3.input.KeyInput;
 import com.jme3.input.controls.ActionListener;
 import com.jme3.input.controls.KeyTrigger;
-import com.jme3.light.DirectionalLight;
 import com.jme3.material.Material;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.FastMath;
@@ -19,7 +18,6 @@ import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
 import com.jme3.scene.shape.Box;
-import com.jme3.scene.shape.Sphere;
 
 public class SimulationApp extends SimpleApplication implements ActionListener {
 
@@ -31,7 +29,7 @@ public class SimulationApp extends SimpleApplication implements ActionListener {
     private float steeringValue = 0;
     private float accelerationValue = 0;
 
-    private DoesitRoverModern rover;
+    private DoesitRoverModernState roverState;
     private Box rock = new Box(0.5f, 0.5f, 0.5f);
     private Camera mainCamera;
     private Geometry rockGeo[];
@@ -41,7 +39,7 @@ public class SimulationApp extends SimpleApplication implements ActionListener {
     
     @Override
     public void simpleInitApp() {
-        flyCam.setMoveSpeed(60);
+       // flyCam.setMoveSpeed(60);
         assetManager.registerLoader(com.jme3.material.plugins.NeoTextureMaterialLoader.class,"tgr");
         guiFont = assetManager.loadFont("Interface/Fonts/Default.fnt");
         hoverEnergyText = new BitmapText(guiFont);
@@ -50,21 +48,29 @@ public class SimulationApp extends SimpleApplication implements ActionListener {
 
         guiNode.attachChild(hoverEnergyText);
         
+
         worldTimeState = new WorldTimeState();
         stateManager.attach(worldTimeState);
         
         configureSky();
-       // configureCamera();
+        configureCamera();
         configureObjects();
-        configurePhysics();
-       // configureNavigationKey();
+        configurePhysics();        
+        roverState = new DoesitRoverModernState(400, 200);
+        stateManager.attach(roverState);
+        
+
+        configureNavigationKey();
     }
 
+    public BulletAppState getBulletAppState() {
+        return bulletAppState;
+    }
+    
     @Override
     public void simpleUpdate(float tpf) {
-        hoverEnergyText.setText("Hover Energy: " + rover.getEnergy());
-        //updateCam();
-       //  rover.update(tpf);
+        hoverEnergyText.setText("Hover Energy: " + roverState.getPower());
+        updateCam();
     }
 
     public Node getSceneNode() {
@@ -72,12 +78,12 @@ public class SimulationApp extends SimpleApplication implements ActionListener {
     }
     
     private void updateCam() {
-        cam.setLocation(rover.getNode().getLocalTranslation().add(new Vector3f(-10,25, -10)));
-        cam.lookAt(rover.getControl().getPhysicsLocation(), Vector3f.UNIT_Y);
+        cam.setLocation(roverState.getNode().getLocalTranslation().add(new Vector3f(-10,25, -10)));
+        cam.lookAt(roverState.getControl().getPhysicsLocation(), Vector3f.UNIT_Y);
     }
 
     private void configureCamera() {
-        setDisplayFps(false);
+        setDisplayFps(true);
         setDisplayStatView(false);
         mainCamera = cam;
         cam.setLocation(new Vector3f(20,35,20));
@@ -87,8 +93,7 @@ public class SimulationApp extends SimpleApplication implements ActionListener {
     public Camera getMainCamera() {
         return mainCamera;
     }
-    
-    
+
     private void configureNavigationKey() {
         inputManager.addMapping("Forward", new KeyTrigger(KeyInput.KEY_W));
         inputManager.addMapping("Back", new KeyTrigger(KeyInput.KEY_S));
@@ -106,12 +111,14 @@ public class SimulationApp extends SimpleApplication implements ActionListener {
         inputManager.addMapping("Cam turn left", new KeyTrigger(KeyInput.KEY_H));
         inputManager.addMapping("Shorten arm", new KeyTrigger(KeyInput.KEY_E));
         inputManager.addMapping("Stretche arm", new KeyTrigger(KeyInput.KEY_R));
+        inputManager.addMapping("Light on", new KeyTrigger(KeyInput.KEY_L));
+        
         
         inputManager.addListener(this, "Rotate Left", "Rotate Right",
                 "Arm turn left", "Arm turn down", "Stretche arm", "Shorten arm");
         
         inputManager.addListener(this, "Rotate Left", "Rotate Right",
-                "Arm turn right", "Arm turn up");
+                "Arm turn right", "Arm turn up", "Light on");
         
         inputManager.addListener(this, "Forward", "Back", "Brake","Grab",
                 "Arm turn down", "Arm turn up", "Cam turn down", "Cam turn up",
@@ -119,13 +126,9 @@ public class SimulationApp extends SimpleApplication implements ActionListener {
     }
 
     private void configureObjects() {
-        sceneNode = new Node("First Mission");
+        sceneNode = new Node("Scene");
             
-        rover = new DoesitRoverModern(500, 1000);
-        
-        rover.setupGeometry(this, sceneNode);
 
-        
         rootNode.attachChild(sceneNode);
 
         terrainGeo = assetManager.loadModel("/Models/Terrain/MarsTerrain.j3o");
@@ -155,9 +158,6 @@ public class SimulationApp extends SimpleApplication implements ActionListener {
         bulletAppState.getPhysicsSpace().setGravity(new Vector3f(0.0f, -9.8f, 0.0f));
         bulletAppState.getPhysicsSpace().setAccuracy(0.007f);
 
-        //ROVER CONFIGURATION
-        rover.setupPhysics(bulletAppState);
-
         //ROCK CONFIGURATION
         for (int i = 0; i < numberOfRocks; i++) {
             RigidBodyControl rockControl = 
@@ -181,6 +181,11 @@ public class SimulationApp extends SimpleApplication implements ActionListener {
         return worldTimeState.getColorOf(mat, pos, normal, result);
     }
     
+    public ColorRGBA getReflectionColor(Material mat, Vector3f pos, Vector3f normal, ColorRGBA result) {
+        worldTimeState.getReflectionColor(mat, pos, normal, result, 0);
+        return result;
+    }
+    
     public void onAction(String name, boolean isPressed, float tpf) {
         if (name.equals("Rotate Left")) {
             if (isPressed) {
@@ -188,80 +193,84 @@ public class SimulationApp extends SimpleApplication implements ActionListener {
             } else {
                 steeringValue += 0.5f;
             }
-            rover.steer(steeringValue);
+            roverState.steer(steeringValue);
         } else if (name.equals("Rotate Right")) {
             if (isPressed) {
                 steeringValue += 0.5f;
             } else {
                 steeringValue -= 0.5f;
             }
-            rover.steer(steeringValue);
+            roverState.steer(steeringValue);
         } else if (name.equals("Forward")) {
             if (isPressed) {
                 accelerationValue += acceleration;
             } else {
                 accelerationValue -= acceleration;
             }
-            rover.accelerate(accelerationValue);
+            roverState.accelerate(accelerationValue);
         } else if (name.equals("Back")) {
             if (isPressed) {
                 accelerationValue -= acceleration;
             } else {
                 accelerationValue += acceleration;
             }
-            rover.accelerate(accelerationValue);
+            roverState.accelerate(accelerationValue);
         } else if (name.equals("Brake")) {
             
             if (isPressed) {
-                rover.brake(brakeForce);
+                roverState.brake(brakeForce);
             } else {
-                rover.brake(0);
+                roverState.brake(0);
             }
         } else if (name.equals("Arm turn left")) {
             if (isPressed){
-                rover.armTurnLeft();
+                roverState.armTurnLeft();
             }
         } else if (name.equals("Arm turn right")) {
             if (isPressed){
-                rover.armTurnRight();
+                roverState.armTurnRight();
             }             
         } else if (name.equals("Arm turn down")) {
             if (isPressed) {
-                rover.armTurnDown();
+                roverState.armTurnDown();
             }
         } else if (name.equals("Arm turn up")) {
             if (isPressed){
-                rover.armTurnUp();
+                roverState.armTurnUp();
             }             
         } else if (name.equals("Grab")) {
             if (isPressed) {
-                rover.grabberGrab();
+                roverState.grabberGrab();
             } else {
-                rover.grabberDrop();
+                roverState.grabberDrop();
             }
         } else if (name.equals("Cam turn down")) {
             if (isPressed) {
-                rover.cameraTurnDown();
+                roverState.cameraTurnDown();
             }
         } else if (name.equals("Cam turn up")) {
             if (isPressed) {
-                rover.cameraTurnUp();
+                roverState.cameraTurnUp();
             }
         } else if (name.equals("Cam turn right")) {
             if (isPressed) {
-                rover.cameraTurnRight();
+                roverState.cameraTurnRight();
             }
         } else if (name.equals("Cam turn left")) {
             if (isPressed) {
-                rover.cameraTurnLeft();
+                roverState.cameraTurnLeft();
             }
         } else if (name.equals("Stretche arm")) {
             if (isPressed) {
-                rover.sketcheArm();
+                roverState.sketcheArm();
             }
         } else if (name.equals("Shorten arm")){
             if (isPressed) {
-                rover.shortenArm();
+                roverState.shortenArm();
+            }
+        } else if (name.equals("Light on")) {
+            if (isPressed) {
+                roverState.setLightOn(!roverState.isLightOn());
             }
         }
     }
