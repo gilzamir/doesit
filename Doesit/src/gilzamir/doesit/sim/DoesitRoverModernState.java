@@ -3,7 +3,10 @@ package gilzamir.doesit.sim;
 import com.jme3.animation.AnimChannel;
 import com.jme3.animation.AnimControl;
 import com.jme3.animation.Bone;
+import com.jme3.app.Application;
 import com.jme3.app.SimpleApplication;
+import com.jme3.app.state.AbstractAppState;
+import com.jme3.app.state.AppStateManager;
 import com.jme3.bullet.BulletAppState;
 import com.jme3.bullet.PhysicsSpace;
 import com.jme3.bullet.PhysicsTickListener;
@@ -16,8 +19,11 @@ import com.jme3.bullet.collision.shapes.GImpactCollisionShape;
 import com.jme3.bullet.control.KinematicRagdollControl;
 import com.jme3.bullet.control.RigidBodyControl;
 import com.jme3.bullet.control.VehicleControl;
-import com.jme3.bullet.util.CollisionShapeFactory;
+import com.jme3.light.SpotLight;
+import com.jme3.math.ColorRGBA;
 import com.jme3.math.FastMath;
+import com.jme3.math.Matrix3f;
+import com.jme3.math.Matrix4f;
 import com.jme3.math.Quaternion;
 import com.jme3.math.Transform;
 import com.jme3.math.Vector3f;
@@ -33,8 +39,7 @@ import com.jme3.scene.control.CameraControl;
 import java.nio.FloatBuffer;
 import java.util.ArrayList;
 
-public class DoesitRoverModern implements RagdollCollisionListener, PhysicsTickListener {
- 
+public class DoesitRoverModernState extends AbstractAppState implements RagdollCollisionListener, PhysicsTickListener {
     private Node roverNode;
     private VehicleControl roverControl;
     private CollisionShape roverShape;
@@ -61,24 +66,38 @@ public class DoesitRoverModern implements RagdollCollisionListener, PhysicsTickL
     private AnimControl armAnimControl, camAnimControl;
     private AnimChannel armAnimChannel;
     private BulletAppState physics;
-
+    private boolean lightOn = false;
+    private SpotLight light;
+    
     private Vector3f armPosition;
     private Vector3f camPosition;
     private Vector3f roverPosition;
     
-    private Vector3f colorResult = new Vector3f(0,0,0);
+    private ColorRGBA colorResult = new ColorRGBA();
     private SimulationApp simulation = null;
     
-    private float energy;
-    private float energyEfficiency;
+    private RoverBatteryProfile battery;
+    private RoverEnginePowerProfile enginePowerProfile;
     
-    public DoesitRoverModern(float chassiMass, float initialEnergy) {
+    @Override
+    public void initialize(AppStateManager stateManager, Application app) {
+        simulation = (SimulationApp) app;
+        this.physics = simulation.getBulletAppState();
+        Node scene = (Node)simulation.getRootNode().getChild("Scene");
+        setupGeometry(simulation, scene);
+        setupCamera(simulation, scene);
+        setupPhysics(physics);
+
+    }
+    
+    
+    public DoesitRoverModernState(float chassiMass, float initialEnergy) {
         this.mass = chassiMass;
         this.armPosition = new Vector3f(-0.7f, 1.0f, -1.6f);
         this.camPosition = new Vector3f(-0.7f, 0.5f, 0.5f);
         this.roverPosition = new Vector3f(-25.0f, 2.5f, 10.0f);
-        this.energy = initialEnergy;
-        this.energyEfficiency = 1.0f;
+        this.enginePowerProfile = new RoverEnginePowerProfile();
+        this.battery = new RoverBatteryProfile(10000, initialEnergy);
     }
 
     public void setArmPosition(float x, float y, float z) {
@@ -91,6 +110,19 @@ public class DoesitRoverModern implements RagdollCollisionListener, PhysicsTickL
         this.camPosition.x = x;
         this.camPosition.y = y;
         this.camPosition.z = z;
+    }
+
+    public boolean isLightOn() {
+        return lightOn;
+    }
+
+    public void setLightOn(boolean lightOn) {
+        this.lightOn = lightOn;
+        if (lightOn) {
+            light.setColor(ColorRGBA.White.mult(1.7f));
+        } else {
+            light.setColor(ColorRGBA.Black);
+        }
     }
 
     public void setRoverPosition(float x, float y, float z) {
@@ -113,7 +145,6 @@ public class DoesitRoverModern implements RagdollCollisionListener, PhysicsTickL
         Node model = (Node)app.getAssetManager().loadModel("/Models/doesithover/car.j3o");
         roverNode = (Node) model.getChild("chassi");
         
-
         wheelNode1 = (Node)model.getChild("wheel1");
         wheelNode2 = (Node)model.getChild("wheel2");        
         wheelNode3 = (Node)model.getChild("wheel3");
@@ -139,6 +170,18 @@ public class DoesitRoverModern implements RagdollCollisionListener, PhysicsTickL
         roverNode.attachChild(roverCamModelNode);
         roverCamModelNode.move(camPosition);
         
+        this.light = new SpotLight();
+        this.light.setColor(ColorRGBA.White);
+        this.light.setDirection(new Vector3f(0,0,1));
+        this.light.setPosition(roverCam.getWorldTranslation());
+        light.setSpotRange(100f);                           // distance
+        light.setSpotInnerAngle(15f * FastMath.DEG_TO_RAD); // inner light cone (central beam)
+        light.setSpotOuterAngle(35f * FastMath.DEG_TO_RAD); // outer light cone (edge of the light)
+        light.setColor(ColorRGBA.Black);         // light color
+        
+        rootNode.addLight(light);
+
+        
         roverNode.move(this.roverPosition);
         rootNode.attachChild(roverNode);        
         setupCamera(app, rootNode);
@@ -146,16 +189,15 @@ public class DoesitRoverModern implements RagdollCollisionListener, PhysicsTickL
     }
     
     private void setupCamera(SimpleApplication app, Node rootNode) {
-    /*    cam = app.getCamera().clone();
-        cam.setViewPort(0f, 0.1f, 0, 0.1f);
+        cam = app.getCamera().clone();
+        cam.setViewPort(0f, 1.0f, 0, 0.5f);
         viewPort = app.getRenderManager()
-                .createMainView("Bottom Left", cam);
+                .createMainView("First Person", cam);
         viewPort.setClearFlags(true, true, true);
         viewPort.setBackgroundColor(app.getViewPort().getBackgroundColor());
         viewPort.attachScene(rootNode);
         
-        app.getCamera().setViewPort(0.0f, 1.0f, 0.0f, 1.0f);
-        
+        app.getCamera().setViewPort(0.0f, 1.0f, 0.5f, 1.0f);
         
         camNode = new CameraNode("CamNode", cam);
         camNode.setControlDir(CameraControl.ControlDirection.SpatialToCamera);
@@ -163,7 +205,7 @@ public class DoesitRoverModern implements RagdollCollisionListener, PhysicsTickL
         Quaternion quat = new Quaternion();
         quat.lookAt(Vector3f.UNIT_Z, Vector3f.UNIT_Y);
         camNode.setLocalRotation(quat);
-        roverCamModelNode.attachChild(camNode);*/
+        roverCamModelNode.attachChild(camNode);
     }
 
     /**
@@ -244,8 +286,8 @@ public class DoesitRoverModern implements RagdollCollisionListener, PhysicsTickL
         
     }
 
-    public float getEnergy() {
-        return energy;
+    public float getPower() {
+        return this.battery.getPower();
     }
     
     public void armTurnLeft() {
@@ -566,19 +608,19 @@ public class DoesitRoverModern implements RagdollCollisionListener, PhysicsTickL
     }
 
     public void brake(float force) {
-        if (reserveMovementEnergy()) {
+        if (reserveEnergyToBrake()) {
             roverControl.brake(force);
         }
     }
 
     public void accelerate(float value) {
-        if (reserveMovementEnergy()) {
+        if (reserveEnergyToAcceleration()) {
             roverControl.accelerate(value);
         }
     }
     
     public void steer(float value) {
-        if (reserveMovementEnergy()) {
+        if (reserveEnergyToSteer()) {
             roverControl.steer(value);
         }
     }
@@ -587,14 +629,30 @@ public class DoesitRoverModern implements RagdollCollisionListener, PhysicsTickL
         return roverControl;
     }
 
+    @Override
     public void update(float fps) {
-        if (grabbedObject != null) {
-            Vector3f pos = armRagDoll.getBoneRigidBody("finger").getPhysicsLocation();
-            pos = pos.add(new Vector3f(0,-1,0));
-            grabbedObject.setPhysicsLocation(pos);
-        }
         if (simulation != null) {
-             energy += getReceivedEnergy();
+            battery.storeEnergy(getReceivedEnergy() * fps);
+        }
+        if (reserveEnergyToLive()) {
+            if (grabbedObject != null) {
+                Vector3f pos = armRagDoll.getBoneRigidBody("finger").getPhysicsLocation();
+                pos = pos.add(new Vector3f(0, -1, 0));
+                grabbedObject.setPhysicsLocation(pos);
+            }
+            if (!battery.hasPowerTo(3.0f)) {
+                accelerate(0);
+            }
+            if (!battery.hasPowerTo(3.0f)) {
+                steer(0);
+            }
+        }
+        if (!reserveEnergyToLight() && isLightOn()) {
+            setLightOn(false);
+        }
+        if (lightOn) {
+            light.setPosition(cam.getLocation());               // shine from camera loc
+            light.setDirection(cam.getDirection());             // shine forward from camera loc
         }
     }
     
@@ -612,6 +670,13 @@ public class DoesitRoverModern implements RagdollCollisionListener, PhysicsTickL
         
         posBuf.rewind();
         norBuf.rewind();
+
+        Matrix3f rotMatrix = transform.getRotation().toRotationMatrix();
+        Matrix4f model = new Matrix4f();
+        model.setTransform(transform.getTranslation(), transform.getScale(), rotMatrix);
+        
+        model.invertLocal().transposeLocal();
+        
         while (posBuf.hasRemaining()) {
             float px = posBuf.get();
             float py = posBuf.get();
@@ -628,14 +693,16 @@ public class DoesitRoverModern implements RagdollCollisionListener, PhysicsTickL
             tmpNorm.z = nz;
             
             transform.transformVector(tmpPos, storePos);
-            storeNorm = transform.getRotation().mult(tmpNorm);
+            storeNorm = model.mult(tmpNorm);
+            colorResult.r = 0.0f;
+            colorResult.g = 0.0f;
+            colorResult.b = 0.0f;
             
-            simulation.getColorOf(g.getMaterial(), storePos, storeNorm, colorResult);
-            
-            e += colorResult.z;
+            simulation.getReflectionColor(g.getMaterial(), storePos, storeNorm, colorResult);
+            e += colorResult.b;
         }
         System.out.println(e);
-        return e * energyEfficiency;
+        return e * enginePowerProfile.solarCaptureEfficiency;
     }
     
     public void collide(Bone bone, PhysicsCollisionObject object, PhysicsCollisionEvent event) {
@@ -661,33 +728,33 @@ public class DoesitRoverModern implements RagdollCollisionListener, PhysicsTickL
     }
     
     protected boolean reserveCameraMovementEnergy() {
-        final float neccessary = 2.0f;
-        if (energy > neccessary) {
-            energy -= neccessary;
-            return true;
-        } else {
-            return false;
-        }
+        return (battery.reservePower(enginePowerProfile.armActionPowerConsumption, false) > 0.0f);
     }
     
-
     protected boolean reserveArmMovementEnergy() {
-        final float neccessary = 5.0f;
-        if (energy > neccessary) {
-            energy -= neccessary;
-            return true;
-        } else {
-            return false;
-        }
+        return (battery.reservePower(enginePowerProfile.armActionPowerConsumption, false) > 0.0f);
     }
     
-    protected boolean reserveMovementEnergy() {
-        final float neccessary = 3.0f;
-        if (energy > neccessary) {
-            energy -= neccessary;
-            return true;
-        } else {
-            return false;
-        }
+    protected boolean reserveEnergyToAcceleration() {
+        return (battery.reservePower(enginePowerProfile.accelerationPowerConsumption, false) >  0.0f);
+    }
+
+    protected boolean reserveEnergyToBrake() {
+        return (battery.reservePower(enginePowerProfile.brakePowerConsumption, false) >  0.0f);
+    }
+
+    protected boolean reserveEnergyToSteer() {
+        return (battery.reservePower(enginePowerProfile.steerPowerConsumption, false) >  0.0f);
+    }
+    
+    protected boolean reserveEnergyToLive() {
+        final float neccessary = 0.2f;
+        return (battery.reservePower(neccessary, false) > 0.0f);
+
+    }
+    
+    protected boolean reserveEnergyToLight() {
+        float neccessary = light.getColor().r * 3;
+        return (battery.reservePower(neccessary, false) > 0.0f);
     }
 }

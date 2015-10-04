@@ -29,7 +29,7 @@ public class GameApp extends SimpleApplication implements ActionListener {
     private float steeringValue = 0;
     private float accelerationValue = 0;
 
-    private DoesitRoverModern rover;
+    private DoesitRoverModernState rover;
     private Box rock = new Box(0.5f, 0.5f, 0.5f);
     private Camera mainCamera;
     private Geometry rockGeo[];
@@ -98,7 +98,7 @@ public class GameApp extends SimpleApplication implements ActionListener {
     }
 
     private void configureObjects() {
-        rover = new DoesitRoverModern(500, 1000);
+        rover = new DoesitRoverModernState(500, 1000);
         sceneNode = new Node("First Mission");
 
         rover.setupGeometry(this, sceneNode);
