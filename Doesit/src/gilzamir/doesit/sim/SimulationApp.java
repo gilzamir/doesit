@@ -30,6 +30,9 @@ public class SimulationApp extends SimpleApplication implements ActionListener {
     private float accelerationValue = 0;
 
     private DoesitRoverModernState roverState;
+    private ArmModule roverArm;
+    private CameraModule roverCamera;
+            
     private Box rock = new Box(0.5f, 0.5f, 0.5f);
     private Camera mainCamera;
     private Geometry rockGeo[];
@@ -57,9 +60,13 @@ public class SimulationApp extends SimpleApplication implements ActionListener {
         configureObjects();
         configurePhysics();        
         roverState = new DoesitRoverModernState(400, 200);
+        roverArm = new ArmModule(roverState);
+        roverCamera = new CameraModule(roverState);
+        roverState.addModule("Arm", roverArm);
+        roverState.addModule("Camera", roverCamera);
+        
         stateManager.attach(roverState);
         
-
         configureNavigationKey();
     }
 
@@ -166,6 +173,7 @@ public class SimulationApp extends SimpleApplication implements ActionListener {
             );
             rockGeo[i].addControl(rockControl);
             bulletAppState.getPhysicsSpace().add(rockControl) ;
+          
         }
         
         //TERRAIN CONFIGURATION
@@ -187,7 +195,7 @@ public class SimulationApp extends SimpleApplication implements ActionListener {
     }
     
     public void onAction(String name, boolean isPressed, float tpf) {
-        if (name.equals("Rotate Left")) {
+       if (name.equals("Rotate Left")) {
             if (isPressed) {
                 steeringValue += -0.5f;
             } else {
@@ -224,53 +232,53 @@ public class SimulationApp extends SimpleApplication implements ActionListener {
             }
         } else if (name.equals("Arm turn left")) {
             if (isPressed){
-                roverState.armTurnLeft();
+                roverArm.act("TurnLeft");
             }
         } else if (name.equals("Arm turn right")) {
             if (isPressed){
-                roverState.armTurnRight();
+                roverArm.act("TurnRight");
             }             
         } else if (name.equals("Arm turn down")) {
             if (isPressed) {
-                roverState.armTurnDown();
+                roverArm.act("TurnDown");
             }
         } else if (name.equals("Arm turn up")) {
             if (isPressed){
-                roverState.armTurnUp();
+                roverArm.act("TurnUp");
             }             
         } else if (name.equals("Grab")) {
             if (isPressed) {
-                roverState.grabberGrab();
+                roverArm.act("Grab");
             } else {
-                roverState.grabberDrop();
+                roverArm.act("Drop");
             }
         } else if (name.equals("Cam turn down")) {
             if (isPressed) {
-                roverState.cameraTurnDown();
+                roverCamera.cameraTurnDown();
             }
         } else if (name.equals("Cam turn up")) {
             if (isPressed) {
-                roverState.cameraTurnUp();
+                roverCamera.cameraTurnUp();
             }
         } else if (name.equals("Cam turn right")) {
             if (isPressed) {
-                roverState.cameraTurnRight();
+                roverCamera.cameraTurnRight();
             }
         } else if (name.equals("Cam turn left")) {
             if (isPressed) {
-                roverState.cameraTurnLeft();
+                roverCamera.cameraTurnLeft();
             }
         } else if (name.equals("Stretche arm")) {
             if (isPressed) {
-                roverState.sketcheArm();
+                roverArm.act("Sketche");
             }
         } else if (name.equals("Shorten arm")){
             if (isPressed) {
-                roverState.shortenArm();
+                roverArm.act("Shorten");
             }
         } else if (name.equals("Light on")) {
             if (isPressed) {
-                roverState.setLightOn(!roverState.isLightOn());
+                roverCamera.setLightOn(!roverCamera.isLightOn());
             }
         }
     }

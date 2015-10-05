@@ -1,8 +1,5 @@
 package gilzamir.doesit.sim;
 
-import com.jme3.animation.AnimChannel;
-import com.jme3.animation.AnimControl;
-import com.jme3.animation.Bone;
 import com.jme3.app.Application;
 import com.jme3.app.SimpleApplication;
 import com.jme3.app.state.AbstractAppState;
@@ -10,37 +7,29 @@ import com.jme3.app.state.AppStateManager;
 import com.jme3.bullet.BulletAppState;
 import com.jme3.bullet.PhysicsSpace;
 import com.jme3.bullet.PhysicsTickListener;
-import com.jme3.bullet.collision.PhysicsCollisionEvent;
-import com.jme3.bullet.collision.PhysicsCollisionObject;
-import com.jme3.bullet.collision.RagdollCollisionListener;
 import com.jme3.bullet.collision.shapes.CollisionShape;
 import com.jme3.bullet.collision.shapes.CompoundCollisionShape;
 import com.jme3.bullet.collision.shapes.GImpactCollisionShape;
-import com.jme3.bullet.control.KinematicRagdollControl;
 import com.jme3.bullet.control.RigidBodyControl;
 import com.jme3.bullet.control.VehicleControl;
-import com.jme3.light.SpotLight;
 import com.jme3.math.ColorRGBA;
-import com.jme3.math.FastMath;
 import com.jme3.math.Matrix3f;
 import com.jme3.math.Matrix4f;
-import com.jme3.math.Quaternion;
 import com.jme3.math.Transform;
 import com.jme3.math.Vector3f;
-import com.jme3.renderer.Camera;
-import com.jme3.renderer.ViewPort;
 import com.jme3.renderer.queue.RenderQueue;
-import com.jme3.scene.CameraNode;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
-import com.jme3.scene.Spatial;
 import com.jme3.scene.VertexBuffer;
-import com.jme3.scene.control.CameraControl;
 import java.nio.FloatBuffer;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
-public class DoesitRoverModernState extends AbstractAppState implements RagdollCollisionListener, PhysicsTickListener {
-    private Node roverNode;
+
+public class DoesitRoverModernState extends AbstractAppState implements PhysicsTickListener {
+    private Node node;
     private VehicleControl roverControl;
     private CollisionShape roverShape;
     private float mass;
@@ -49,35 +38,43 @@ public class DoesitRoverModernState extends AbstractAppState implements RagdollC
     private Vector3f wheelDirection = new Vector3f(0,-1,0);
     private Vector3f wheelAxle = new Vector3f(-1,0,0);
     private Node wheelNode1, wheelNode2, wheelNode3, wheelNode4;
+    private List<String> moduleNames = new ArrayList<String>();
     private float wheelRadius = 0.5f, yOff = 0.9f, xOff = 3.0f, zOff = 3.6f, restLenght = 0.4f;
-    private Node armModelNode, roverCamModelNode;
-    private boolean grabberOpened = false;
-    private final int maxGrabbed = 3;
-    private ArrayList<RigidBodyControl> grabbedList = new ArrayList<RigidBodyControl>(maxGrabbed);
-    private RigidBodyControl grabbedObject = null;
-    private CameraNode camNode;
-    private Camera cam;
-    private ViewPort viewPort;
-    private Vector3f armRootBoneRotation = new Vector3f(0,0,0);
-    private Vector3f armArmBoneRotation = new Vector3f(0,0,0);
-    private Vector3f armScale = new Vector3f(1,1,1);
-    private Vector3f camHeadBoneRotation = new Vector3f(0,0,0);
-    private KinematicRagdollControl armRagDoll, camRagDoll;
-    private AnimControl armAnimControl, camAnimControl;
-    private AnimChannel armAnimChannel;
+    
+    private final int maxGrabbed = 50;
+    private List<RigidBodyControl> grabbedList = new ArrayList<RigidBodyControl>(maxGrabbed);
+
     private BulletAppState physics;
-    private boolean lightOn = false;
-    private SpotLight light;
-    
-    private Vector3f armPosition;
-    private Vector3f camPosition;
     private Vector3f roverPosition;
-    
     private ColorRGBA colorResult = new ColorRGBA();
     private SimulationApp simulation = null;
-    
     private RoverBatteryProfile battery;
-    private RoverEnginePowerProfile enginePowerProfile;
+    private Node model;
+    private Map<String, AbstractModule> modules; 
+    private EnginePowerProfile enginePowerProfile;
+    
+    public DoesitRoverModernState(float chassiMass, float initialEnergy) {
+        this.mass = chassiMass;
+        this.roverPosition = new Vector3f(-25.0f, 2.5f, 10.0f);
+        this.battery = new RoverBatteryProfile(15000, initialEnergy);
+        this.enginePowerProfile = new EnginePowerProfile();
+        this.modules = new HashMap<String, AbstractModule>();
+    }
+    
+    public void addModule(String name, AbstractModule module){
+        this.modules.put(name, module);
+        this.moduleNames.add(name);
+    }
+    
+    public AbstractModule removeModule(String name) {
+        AbstractModule m = this.modules.remove(name);
+        moduleNames.remove(name);
+        return m;
+    }
+    
+    public AbstractModule getModule(String name) {
+        return this.modules.get(name);
+    }
     
     @Override
     public void initialize(AppStateManager stateManager, Application app) {
@@ -85,44 +82,15 @@ public class DoesitRoverModernState extends AbstractAppState implements RagdollC
         this.physics = simulation.getBulletAppState();
         Node scene = (Node)simulation.getRootNode().getChild("Scene");
         setupGeometry(simulation, scene);
-        setupCamera(simulation, scene);
         setupPhysics(physics);
 
-    }
-    
-    
-    public DoesitRoverModernState(float chassiMass, float initialEnergy) {
-        this.mass = chassiMass;
-        this.armPosition = new Vector3f(-0.7f, 1.0f, -1.6f);
-        this.camPosition = new Vector3f(-0.7f, 0.5f, 0.5f);
-        this.roverPosition = new Vector3f(-25.0f, 2.5f, 10.0f);
-        this.enginePowerProfile = new RoverEnginePowerProfile();
-        this.battery = new RoverBatteryProfile(10000, initialEnergy);
-    }
-
-    public void setArmPosition(float x, float y, float z) {
-        this.armPosition.x = x;
-        this.armPosition.y = y;
-        this.armPosition.z = z;
-    }
-    
-    public void setCamPosition(float x, float  y, float z) {
-        this.camPosition.x = x;
-        this.camPosition.y = y;
-        this.camPosition.z = z;
-    }
-
-    public boolean isLightOn() {
-        return lightOn;
-    }
-
-    public void setLightOn(boolean lightOn) {
-        this.lightOn = lightOn;
-        if (lightOn) {
-            light.setColor(ColorRGBA.White.mult(1.7f));
-        } else {
-            light.setColor(ColorRGBA.Black);
+        for (String k : moduleNames) {
+            modules.get(k).setup(model);
         }
+    }
+
+    public SimulationApp getSimulation() {
+        return simulation;
     }
 
     public void setRoverPosition(float x, float y, float z) {
@@ -142,8 +110,8 @@ public class DoesitRoverModernState extends AbstractAppState implements RagdollC
             simulation = (SimulationApp) app;
         }
         
-        Node model = (Node)app.getAssetManager().loadModel("/Models/doesithover/car.j3o");
-        roverNode = (Node) model.getChild("chassi");
+        model = (Node)app.getAssetManager().loadModel("/Models/doesithover/car.j3o");
+        node = (Node) model.getChild("chassi");
         
         wheelNode1 = (Node)model.getChild("wheel1");
         wheelNode2 = (Node)model.getChild("wheel2");        
@@ -157,55 +125,9 @@ public class DoesitRoverModernState extends AbstractAppState implements RagdollC
         rootNode.attachChild(wheelNode3);
         rootNode.attachChild(wheelNode4);
         
-        armModelNode = new Node("armNode");
-        Node arm = (Node)model.getChild("GrabberArmature");
-        arm.move(armPosition);
-       
-        armModelNode.attachChild(arm);
-        roverNode.attachChild(armModelNode);
-       
-        roverCamModelNode = new Node("roverCamNode");
-        Node roverCam = (Node)model.getChild("CamArmature");
-        roverCamModelNode.attachChild(roverCam);
-        roverNode.attachChild(roverCamModelNode);
-        roverCamModelNode.move(camPosition);
-        
-        this.light = new SpotLight();
-        this.light.setColor(ColorRGBA.White);
-        this.light.setDirection(new Vector3f(0,0,1));
-        this.light.setPosition(roverCam.getWorldTranslation());
-        light.setSpotRange(100f);                           // distance
-        light.setSpotInnerAngle(15f * FastMath.DEG_TO_RAD); // inner light cone (central beam)
-        light.setSpotOuterAngle(35f * FastMath.DEG_TO_RAD); // outer light cone (edge of the light)
-        light.setColor(ColorRGBA.Black);         // light color
-        
-        rootNode.addLight(light);
-
-        
-        roverNode.move(this.roverPosition);
-        rootNode.attachChild(roverNode);        
-        setupCamera(app, rootNode);
-        roverNode.setShadowMode(RenderQueue.ShadowMode.CastAndReceive);
-    }
-    
-    private void setupCamera(SimpleApplication app, Node rootNode) {
-        cam = app.getCamera().clone();
-        cam.setViewPort(0f, 1.0f, 0, 0.5f);
-        viewPort = app.getRenderManager()
-                .createMainView("First Person", cam);
-        viewPort.setClearFlags(true, true, true);
-        viewPort.setBackgroundColor(app.getViewPort().getBackgroundColor());
-        viewPort.attachScene(rootNode);
-        
-        app.getCamera().setViewPort(0.0f, 1.0f, 0.5f, 1.0f);
-        
-        camNode = new CameraNode("CamNode", cam);
-        camNode.setControlDir(CameraControl.ControlDirection.SpatialToCamera);
-        camNode.setLocalTranslation(new Vector3f(0.2f, 6, -0.2f));
-        Quaternion quat = new Quaternion();
-        quat.lookAt(Vector3f.UNIT_Z, Vector3f.UNIT_Y);
-        camNode.setLocalRotation(quat);
-        roverCamModelNode.attachChild(camNode);
+        node.move(this.roverPosition);
+        rootNode.attachChild(node);        
+        node.setShadowMode(RenderQueue.ShadowMode.CastAndReceive);
     }
 
     /**
@@ -215,10 +137,10 @@ public class DoesitRoverModernState extends AbstractAppState implements RagdollC
     public void setupPhysics(BulletAppState physicState) {
         
         CompoundCollisionShape chassiShape =  new CompoundCollisionShape();
-        Geometry chassi1 = (Geometry)roverNode.getChild("chassi1");
-        Geometry chassi2 = (Geometry)roverNode.getChild("chassi2");
-        Geometry chassi3 = (Geometry)roverNode.getChild("chassi3");
-        Geometry chassi4 = (Geometry)roverNode.getChild("chassi4");
+        Geometry chassi1 = (Geometry)node.getChild("chassi1");
+        Geometry chassi2 = (Geometry)node.getChild("chassi2");
+        Geometry chassi3 = (Geometry)node.getChild("chassi3");
+        Geometry chassi4 = (Geometry)node.getChild("chassi4");
         
         GImpactCollisionShape chassi1ColShape = new GImpactCollisionShape(chassi1.getMesh());
         GImpactCollisionShape chassi2ColShape = new GImpactCollisionShape(chassi2.getMesh());
@@ -234,7 +156,7 @@ public class DoesitRoverModernState extends AbstractAppState implements RagdollC
         
         physics = physicState;
         roverControl = new VehicleControl(roverShape, mass);
-        roverNode.addControl(roverControl);
+        node.addControl(roverControl);
         roverControl.setSuspensionCompression(compValue);
         roverControl.setSuspensionDamping(dumpValue);
         roverControl.setSuspensionStiffness(stiffness);
@@ -250,353 +172,16 @@ public class DoesitRoverModernState extends AbstractAppState implements RagdollC
         roverControl.addWheel(wheelNode4, new Vector3f(xOff, yOff, -zOff), 
                 wheelDirection, wheelAxle, restLenght, wheelRadius, false);
 
-        
-        Node armature = (Node) ((Node)armModelNode.getChild("GrabberArmature")).getChild("arm");
-        
-        armAnimControl = armature.getControl(AnimControl.class);
-        armAnimChannel = armAnimControl.createChannel();
-        armAnimChannel.setAnim("idletop");
- 
-        armRagDoll = new KinematicRagdollControl(-20f);
-        armRagDoll.setRootMass(0.02f);
-        armRagDoll.setEventDispatchImpulseThreshold(0.0f);
-        armRagDoll.addCollisionListener(this);
-        armature.addControl(armRagDoll);        
-        armRagDoll.addBoneName("root");
- 
-
-        Node roverCam = (Node)((Node)roverCamModelNode.getChild("CamArmature")).getChild("cam");
-        camAnimControl = roverCam.getControl(AnimControl.class);
-  
-        camRagDoll = new KinematicRagdollControl(-20);
-        camRagDoll.setRootMass(0.02f);
-        camRagDoll.setEventDispatchImpulseThreshold(0);
-        camRagDoll.setRootMass(1.0f);
-        camRagDoll.addBoneName("root");
-        
-        
-        roverCam.addControl(camRagDoll);
-        
-        physics.getPhysicsSpace().add(camRagDoll);
-        physics.getPhysicsSpace().add(armRagDoll);
         physics.getPhysicsSpace().add(roverControl);
-        armRagDoll.addCollisionListener(this);
-        
         physics.getPhysicsSpace().addTickListener(this);
-        
+    }
+
+    public BulletAppState getPhysics() {
+        return physics;
     }
 
     public float getPower() {
         return this.battery.getPower();
-    }
-    
-    public void armTurnLeft() {
-        if (reserveArmMovementEnergy()) {
-            String bone = "root";
-            float MIN = -FastMath.DEG_TO_RAD * 165;
-
-            float lmax = FastMath.DEG_TO_RAD * 25, lmin = -FastMath.DEG_TO_RAD * 10;
-            if (armArmBoneRotation.x > lmax || armArmBoneRotation.x < lmin) {
-                MIN = -FastMath.DEG_TO_RAD * 45;
-            }
-            armRootBoneRotation.z -= 0.1;
-            if (armRootBoneRotation.z < MIN) {
-                armRootBoneRotation.z = MIN;
-            }
-
-            Quaternion rot = new Quaternion().fromAngles(armRootBoneRotation.getX(),
-                    armRootBoneRotation.getY(), armRootBoneRotation.getZ());
-
-
-            Vector3f trans = armModelNode.getLocalTranslation();
-
-            armAnimControl.getSkeleton().getBone(bone).setUserControl(true);
-
-            armAnimControl.getSkeleton().getBone(bone).setUserTransforms(
-                    trans,
-                    rot,
-                    Vector3f.UNIT_XYZ);
-        }
-    }
-
-    public void armTurnRight() {
-        if (reserveArmMovementEnergy()) {
-            float MAX = FastMath.DEG_TO_RAD * 165;
-
-            float lmax = FastMath.DEG_TO_RAD * 25, lmin = -FastMath.DEG_TO_RAD * 10;
-            if (armArmBoneRotation.x > lmax || armArmBoneRotation.x < lmin) {
-                MAX = FastMath.DEG_TO_RAD * 45;
-            }
-
-            String bone = "root";
-            armRootBoneRotation.z += 0.1;
-            if (armRootBoneRotation.z > MAX) {
-                armRootBoneRotation.z = MAX;
-            }
-            Quaternion rot = new Quaternion().fromAngles(armRootBoneRotation.getX(),
-                    armRootBoneRotation.getY(), armRootBoneRotation.getZ());
-
-
-            Vector3f trans = armModelNode.getLocalTranslation();
-
-            armAnimControl.getSkeleton().getBone(bone).setUserControl(true);
-            armAnimControl.getSkeleton().getBone(bone).setUserTransforms(
-                    trans,
-                    rot,
-                    Vector3f.UNIT_XYZ);
-        }
-    }
-    
-    public void armTurnDown() {
-        if (reserveArmMovementEnergy()) {
-            float MAX = FastMath.DEG_TO_RAD * 50;
-
-            float l = FastMath.DEG_TO_RAD * 48;
-            if (armRootBoneRotation.z < -l || armRootBoneRotation.z > l) {
-                MAX = FastMath.DEG_TO_RAD * 10;
-            }
-
-            String bone = "arm";
-
-
-            armArmBoneRotation.x += 0.1;
-            if (armArmBoneRotation.x > MAX) {
-                armArmBoneRotation.x = MAX;
-            }
-
-            Quaternion rot = new Quaternion().fromAngles(armArmBoneRotation.getX(),
-                    armArmBoneRotation.getY(), armArmBoneRotation.getZ());
-
-
-            Vector3f trans = armModelNode.getLocalTranslation();
-
-            armAnimControl.getSkeleton().getBone(bone).setUserControl(true);
-
-            armAnimControl.getSkeleton().getBone(bone).setUserTransforms(
-                    trans,
-                    rot,
-                    armScale);
-        }
-    }
-
-    public void armTurnUp() {
-        if (reserveArmMovementEnergy()) {
-            float MIN = -FastMath.DEG_TO_RAD * 10;
-
-
-            String bone = "arm";
-            armArmBoneRotation.x -= 0.1;
-            if (armArmBoneRotation.x < MIN) {
-                armArmBoneRotation.x = MIN;
-            }
-            Quaternion rot = new Quaternion().fromAngles(armArmBoneRotation.getX(),
-                    armArmBoneRotation.getY(), armArmBoneRotation.getZ());
-
-
-            Vector3f trans = armModelNode.getLocalTranslation();
-
-            armAnimControl.getSkeleton().getBone(bone).setUserControl(true);
-            armAnimControl.getSkeleton().getBone(bone).setUserTransforms(
-                    trans,
-                    rot,
-                    armScale);
-        }
-    }
-    
-    public void grabberGrab() {
-        if (reserveArmMovementEnergy()) {
-            grabberOpened = true;
-            Quaternion rot = new Quaternion().fromAngles(-FastMath.DEG_TO_RAD * 90,
-                    0, 0);
-
-
-            Vector3f trans = armModelNode.getLocalTranslation();
-
-            armAnimControl.getSkeleton().getBone("finger").setUserControl(true);
-            armAnimControl.getSkeleton().getBone("finger").setUserTransforms(
-                    trans,
-                    rot,
-                    Vector3f.UNIT_XYZ);
-            grabberOpened = true;
-        }
-    }
-    
-    public void grabberDrop() {
-        if (reserveArmMovementEnergy()) {
-            grabberOpened = false;
-            grabbedObject = null;
-            Quaternion rot = new Quaternion().fromAngles(0,
-                    0, 0);
-
-
-            Vector3f trans = armModelNode.getLocalTranslation();
-
-            armAnimControl.getSkeleton().getBone("finger").setUserControl(true);
-            armAnimControl.getSkeleton().getBone("finger").setUserTransforms(
-                    trans,
-                    rot,
-                    Vector3f.UNIT_XYZ);
-        }
-    }
-
-    
-    public void cameraTurnUp() {
-        if (reserveCameraMovementEnergy()) {
-            float MIN = FastMath.DEG_TO_RAD * -40;
-
-            String boneName = "head";
-
-            Bone bone = camAnimControl.getSkeleton().getBone(boneName);
-            bone.setUserControl(true);
-
-
-            camHeadBoneRotation.x -= 0.1;
-            if (camHeadBoneRotation.x < MIN) {
-                camHeadBoneRotation.x = MIN;
-            }
-
-            Quaternion rot = new Quaternion().fromAngles(camHeadBoneRotation.x,
-                    camHeadBoneRotation.y, camHeadBoneRotation.z);
-            Quaternion camNodeRot = new Quaternion().fromAngles(camHeadBoneRotation.x,
-                    camHeadBoneRotation.z, camHeadBoneRotation.y);
-
-            Vector3f trans = new Vector3f(0, 0, 0);
-            camNode.setLocalRotation(camNodeRot);
-            bone.setUserTransforms(
-                    trans,
-                    rot,
-                    Vector3f.UNIT_XYZ);
-        }
-    }
-    
-    public void cameraTurnDown() {
-        if (reserveCameraMovementEnergy()) {
-            float MAX = FastMath.DEG_TO_RAD * 30;
-
-            String boneName = "head";
-
-            Bone bone = camAnimControl.getSkeleton().getBone(boneName);
-            bone.setUserControl(true);
-
-
-            camHeadBoneRotation.x += 0.1;
-            if (camHeadBoneRotation.x > MAX) {
-                camHeadBoneRotation.x = MAX;
-            }
-
-            Quaternion rot = new Quaternion().fromAngles(camHeadBoneRotation.x,
-                    camHeadBoneRotation.y, camHeadBoneRotation.z);
-            Quaternion camNodeRot = new Quaternion().fromAngles(camHeadBoneRotation.x,
-                    camHeadBoneRotation.z, camHeadBoneRotation.y);
-
-            Vector3f trans = new Vector3f(0, 0, 0);
-            camNode.setLocalRotation(camNodeRot);
-            bone.setUserTransforms(
-                    trans,
-                    rot,
-                    Vector3f.UNIT_XYZ);
-        }
-    }
-    
-    public void cameraTurnRight() {
-        if (reserveCameraMovementEnergy()) {
-            float MIN = FastMath.DEG_TO_RAD * -40;
-
-            String boneName = "head";
-
-            Bone bone = camAnimControl.getSkeleton().getBone(boneName);
-            bone.setUserControl(true);
-
-
-            camHeadBoneRotation.z -= 0.1;
-            if (camHeadBoneRotation.z < MIN) {
-                camHeadBoneRotation.z = MIN;
-            }
-
-            Quaternion rot = new Quaternion().fromAngles(camHeadBoneRotation.x,
-                    camHeadBoneRotation.y, camHeadBoneRotation.z);
-            Quaternion camNodeRot = new Quaternion().fromAngles(camHeadBoneRotation.x,
-                    camHeadBoneRotation.z, camHeadBoneRotation.y);
-
-            Vector3f trans = new Vector3f(0, 0, 0);
-            camNode.setLocalRotation(camNodeRot);
-            bone.setUserTransforms(
-                    trans,
-                    rot,
-                    Vector3f.UNIT_XYZ);
-        }
-    }
-    
-    public void cameraTurnLeft() {
-        if (reserveCameraMovementEnergy()) {
-            float MAX = FastMath.DEG_TO_RAD * 30;
-
-            String boneName = "head";
-
-            Bone bone = camAnimControl.getSkeleton().getBone(boneName);
-            bone.setUserControl(true);
-
-
-            camHeadBoneRotation.z += 0.1;
-            if (camHeadBoneRotation.z > MAX) {
-                camHeadBoneRotation.z = MAX;
-            }
-
-            Quaternion rot = new Quaternion().fromAngles(camHeadBoneRotation.x,
-                    camHeadBoneRotation.y, camHeadBoneRotation.z);
-
-            Quaternion camNodeRot = new Quaternion().fromAngles(camHeadBoneRotation.x,
-                    camHeadBoneRotation.z, camHeadBoneRotation.y);
-
-
-            Vector3f trans = new Vector3f(0, 0, 0);
-
-            camNode.setLocalRotation(camNodeRot);
-            bone.setUserTransforms(
-                    trans,
-                    rot,
-                    Vector3f.UNIT_XYZ);
-        }
-    }
-    
-    public void sketcheArm() {
-        if (reserveArmMovementEnergy()) {
-            Bone bone = armAnimControl.getSkeleton().getBone("arm");
-
-            Vector3f trans = this.armModelNode.getLocalTranslation();
-            Quaternion qu = this.armModelNode.getLocalRotation();
-
-            armScale.z += 0.1;
-            if (armScale.z > 1.3f) {
-                armScale.z = 1.3f;
-            }
-
-            bone.setUserControl(true);
-            bone.setUserTransforms(
-                    trans,
-                    qu,
-                    armScale);
-        }
-    }
-    
-    public void shortenArm() {
-        if (reserveArmMovementEnergy()) {
-            Bone bone = armAnimControl.getSkeleton().getBone("arm");
-
-            Vector3f trans = this.armModelNode.getLocalTranslation();
-            Quaternion qu = this.armModelNode.getLocalRotation();
-
-            armScale.z -= 0.1;
-            if (armScale.z < 0.5f) {
-                armScale.z = 0.5f;
-            }
-
-            bone.setUserControl(true);
-            bone.setUserTransforms(
-                    trans,
-                    qu,
-                    armScale);
-        }
     }
     
     /**
@@ -604,7 +189,7 @@ public class DoesitRoverModernState extends AbstractAppState implements RagdollC
      * @return 
      */
     public Node getNode() {
-        return roverNode;
+        return node;
     }
 
     public void brake(float force) {
@@ -635,35 +220,29 @@ public class DoesitRoverModernState extends AbstractAppState implements RagdollC
             battery.storeEnergy(getReceivedEnergy() * fps);
         }
         if (reserveEnergyToLive()) {
-            if (grabbedObject != null) {
-                Vector3f pos = armRagDoll.getBoneRigidBody("finger").getPhysicsLocation();
-                pos = pos.add(new Vector3f(0, -1, 0));
-                grabbedObject.setPhysicsLocation(pos);
+           
+            for (String k: moduleNames) {
+                modules.get(k).update();
             }
+            
             if (!battery.hasPowerTo(3.0f)) {
                 accelerate(0);
             }
+            
             if (!battery.hasPowerTo(3.0f)) {
                 steer(0);
             }
-        }
-        if (!reserveEnergyToLight() && isLightOn()) {
-            setLightOn(false);
-        }
-        if (lightOn) {
-            light.setPosition(cam.getLocation());               // shine from camera loc
-            light.setDirection(cam.getDirection());             // shine forward from camera loc
-        }
+        }        
     }
     
     private Vector3f tmpPos = new Vector3f(0,0,0), tmpNorm = new Vector3f(0,0,0);
     private Vector3f storePos = new Vector3f(0,0,0), storeNorm = new Vector3f(0,0,0);
     
     private float getReceivedEnergy() {
-        Transform transform = roverNode.getWorldTransform();
+        Transform transform = node.getWorldTransform();
         
         float e = 0.0f;
-        Geometry g = (Geometry)roverNode.getChild("chassi2");
+        Geometry g = (Geometry)node.getChild("chassi2");
         
         FloatBuffer posBuf = g.getMesh().getFloatBuffer(VertexBuffer.Type.Position);
         FloatBuffer norBuf = g.getMesh().getFloatBuffer(VertexBuffer.Type.Normal);
@@ -672,10 +251,10 @@ public class DoesitRoverModernState extends AbstractAppState implements RagdollC
         norBuf.rewind();
 
         Matrix3f rotMatrix = transform.getRotation().toRotationMatrix();
-        Matrix4f model = new Matrix4f();
-        model.setTransform(transform.getTranslation(), transform.getScale(), rotMatrix);
+        Matrix4f mmodel = new Matrix4f();
+        mmodel.setTransform(transform.getTranslation(), transform.getScale(), rotMatrix);
         
-        model.invertLocal().transposeLocal();
+        mmodel.invertLocal().transposeLocal();
         
         while (posBuf.hasRemaining()) {
             float px = posBuf.get();
@@ -693,7 +272,7 @@ public class DoesitRoverModernState extends AbstractAppState implements RagdollC
             tmpNorm.z = nz;
             
             transform.transformVector(tmpPos, storePos);
-            storeNorm = model.mult(tmpNorm);
+            storeNorm = mmodel.mult(tmpNorm);
             colorResult.r = 0.0f;
             colorResult.g = 0.0f;
             colorResult.b = 0.0f;
@@ -702,37 +281,14 @@ public class DoesitRoverModernState extends AbstractAppState implements RagdollC
             e += colorResult.b;
         }
         System.out.println(e);
-        return e * enginePowerProfile.solarCaptureEfficiency;
+        return e * enginePowerProfile.solarPanelEfficiency;
     }
-    
-    public void collide(Bone bone, PhysicsCollisionObject object, PhysicsCollisionEvent event) {
-        if (bone != null) {
-            if (bone.getName().equals("finger")) {
-                if (object.getUserObject() != null && object.getUserObject() instanceof Spatial) {
-                    Spatial sp = (Spatial) object.getUserObject();
-                    if (sp.getName().endsWith("Collectable")) {
-                        if (grabberOpened) {
-                            grabbedObject = sp.getControl(RigidBodyControl.class);
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
+        
     public void prePhysicsTick(PhysicsSpace space, float tpf) {
         
     }
 
     public void physicsTick(PhysicsSpace space, float tpf) {
-    }
-    
-    protected boolean reserveCameraMovementEnergy() {
-        return (battery.reservePower(enginePowerProfile.armActionPowerConsumption, false) > 0.0f);
-    }
-    
-    protected boolean reserveArmMovementEnergy() {
-        return (battery.reservePower(enginePowerProfile.armActionPowerConsumption, false) > 0.0f);
     }
     
     protected boolean reserveEnergyToAcceleration() {
@@ -752,9 +308,12 @@ public class DoesitRoverModernState extends AbstractAppState implements RagdollC
         return (battery.reservePower(neccessary, false) > 0.0f);
 
     }
-    
-    protected boolean reserveEnergyToLight() {
-        float neccessary = light.getColor().r * 3;
-        return (battery.reservePower(neccessary, false) > 0.0f);
+
+    public RoverBatteryProfile getBattery() {
+        return battery;
+    }
+
+    public EnginePowerProfile getEnginePowerProfile() {
+        return enginePowerProfile;
     }
 }
