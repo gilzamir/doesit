@@ -1,10 +1,10 @@
 package gilzamir.doesit.sim;
 
-public class RoverBatteryProfile {
+public class BatteryProfile {
     private final float capacity;
     private float power;
    
-    public RoverBatteryProfile(float capacity, float currentPower) {
+    public BatteryProfile(float capacity, float currentPower) {
         this.capacity = capacity;
         this.power = currentPower;
     }

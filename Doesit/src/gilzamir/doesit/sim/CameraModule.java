@@ -28,18 +28,21 @@ public class CameraModule extends AbstractModule {
     private boolean lightOn = false;
     private SpotLight light;
 
-    public CameraModule(DoesitRoverModernState vehicleState) {
-        super(vehicleState);
+    public CameraModule(AbstractActor actor) {
+        super(actor);
         this.camPosition = new Vector3f(-0.7f, 0.5f, 0.5f);
     }
 
     @Override
     public void setup(Node model) {
+        //DEPENDENDY
+        dependency.add(CarModule.class);
+        
         //GEOMETRY
         roverCamModelNode = new Node("roverCamNode");
         Node roverCam = (Node) model.getChild("CamArmature");
         roverCamModelNode.attachChild(roverCam);
-        rover.getNode().attachChild(roverCamModelNode);
+        actor.getNode().attachChild(roverCamModelNode);
         roverCamModelNode.move(camPosition);
 
         this.light = new SpotLight();
@@ -50,12 +53,11 @@ public class CameraModule extends AbstractModule {
         light.setSpotInnerAngle(15f * FastMath.DEG_TO_RAD); // inner light cone (central beam)
         light.setSpotOuterAngle(35f * FastMath.DEG_TO_RAD); // outer light cone (edge of the light)
         light.setColor(ColorRGBA.Black);         // light color
-        rover.getSimulation().getSceneNode().addLight(light);
-
+        actor.application.getRootNode().addLight(light);
 
         //PHYSICS
-        Node cam = (Node)((Node)roverCamModelNode.getChild("CamArmature")).getChild("cam");
-        camAnimControl = cam.getControl(AnimControl.class);
+        Node mcam = (Node)((Node)roverCamModelNode.getChild("CamArmature")).getChild("cam");
+        camAnimControl = mcam.getControl(AnimControl.class);
 
         camRagDoll = new KinematicRagdollControl(-20);
         camRagDoll.setRootMass(0.02f);
@@ -63,14 +65,12 @@ public class CameraModule extends AbstractModule {
         camRagDoll.setRootMass(1.0f);
         camRagDoll.addBoneName("root");
 
-        cam.addControl(camRagDoll);
+        mcam.addControl(camRagDoll);
 
-        rover.getPhysics().getPhysicsSpace().add(camRagDoll);
-
+        actor.getPhysics().getPhysicsSpace().add(camRagDoll);
 
         //VIRTUAL CAMERA
-        setupCamera(rover.getSimulation());
-        
+        setupCamera();
         
         //CONFIGURE ACTIONS
         addAction("TurnUp", new CameraTurnUp());
@@ -88,11 +88,11 @@ public class CameraModule extends AbstractModule {
 
     @Override
     public void act(String actionName) {
-        getAction(actionName).exec(this, rover);
+        getAction(actionName).exec(this, actor);
     }
 
     @Override
-    public void update() {
+    public void update(float fps) {
         
         if (lightOn) {
             act("LightOn");
@@ -234,17 +234,17 @@ public class CameraModule extends AbstractModule {
                 Vector3f.UNIT_XYZ);
     }
 
-    private void setupCamera(SimpleApplication app) {
-        Node rootNode = app.getRootNode();
-        cam = app.getCamera().clone();
+    private void setupCamera() {
+        Node rootNode = actor.getApplication().getRootNode();
+        cam = actor.getApplication().getCamera().clone();
         cam.setViewPort(0f, 1.0f, 0, 0.5f);
-        viewPort = app.getRenderManager()
+        viewPort = actor.getApplication().getRenderManager()
                 .createMainView("First Person", cam);
         viewPort.setClearFlags(true, true, true);
-        viewPort.setBackgroundColor(app.getViewPort().getBackgroundColor());
+        viewPort.setBackgroundColor(actor.getApplication().getViewPort().getBackgroundColor());
         viewPort.attachScene(rootNode);
 
-        app.getCamera().setViewPort(0.0f, 1.0f, 0.5f, 1.0f);
+        actor.getApplication().getCamera().setViewPort(0.0f, 1.0f, 0.5f, 1.0f);
 
         camNode = new CameraNode("CamNode", cam);
         camNode.setControlDir(CameraControl.ControlDirection.SpatialToCamera);
@@ -257,10 +257,11 @@ public class CameraModule extends AbstractModule {
 }
 
 class LightOn implements ModuleAction {
-    public void exec(AbstractModule module, DoesitRoverModernState state) {
+    public void exec(AbstractModule module, AbstractActor state) {
         CameraModule cam = (CameraModule)module;
+        BatteryProfile battery = state.getModule(CarModule.class).getBattery();
         float power = module.getPowerProfile().getActionRequiredPower("LightOn");
-        if (state.getBattery().reservePower(power, false) > 0.0f) {
+        if (battery.reservePower(power, false) > 0.0f) {
             cam.setLightOn(true);
         } else if (cam.isLightOn()) {
             cam.setLightOn(false);
@@ -270,47 +271,51 @@ class LightOn implements ModuleAction {
 }
 
 class LightOff implements ModuleAction {
-    public void exec(AbstractModule module, DoesitRoverModernState state) {
+    public void exec(AbstractModule module, AbstractActor state) {
         CameraModule cam = (CameraModule) module;
         cam.setLightOn(false);
     }
 }
 
 class CameraTurnLeft implements ModuleAction {
-    public void exec(AbstractModule module, DoesitRoverModernState state) {
+    public void exec(AbstractModule module, AbstractActor state) {
+        BatteryProfile battery = state.getModule(CarModule.class).getBattery();
         CameraModule cam = (CameraModule) module;
         float power = cam.getPowerProfile().getActionRequiredPower("TurnLeft");
-        if (state.getBattery().reservePower(power, false) > 0.0f) {
+        if (battery.reservePower(power, false) > 0.0f) {
             cam.cameraTurnLeft();
         }
     }
 }
 
 class CameraTurnRight implements ModuleAction {
-    public void exec(AbstractModule module, DoesitRoverModernState state) {
+    public void exec(AbstractModule module, AbstractActor state) {
+        BatteryProfile battery = state.getModule(CarModule.class).getBattery();
         CameraModule cam = (CameraModule) module;
         float power = cam.getPowerProfile().getActionRequiredPower("TurnRight");
-        if (state.getBattery().reservePower(power, false) > 0.0f) {
+        if (battery.reservePower(power, false) > 0.0f) {
             cam.cameraTurnRight();
         }
     }
 }
 
 class CameraTurnDown implements ModuleAction {
-    public void exec(AbstractModule module, DoesitRoverModernState state) {
+    public void exec(AbstractModule module, AbstractActor state) {
+        BatteryProfile battery = state.getModule(CarModule.class).getBattery();
         CameraModule cam = (CameraModule) module;
         float power = cam.getPowerProfile().getActionRequiredPower("TurnDown");
-        if (state.getBattery().reservePower(power, false) > 0.0f) {
+        if (battery.reservePower(power, false) > 0.0f) {
             cam.cameraTurnDown();
         }
     }
 }
 
 class CameraTurnUp implements ModuleAction {
-    public void exec(AbstractModule module, DoesitRoverModernState state) {
+    public void exec(AbstractModule module, AbstractActor state) {
+        BatteryProfile battery = state.getModule(CarModule.class).getBattery();
         CameraModule cam = (CameraModule) module;
         float power = cam.getPowerProfile().getActionRequiredPower("TurnUp");
-        if (state.getBattery().reservePower(power, false) > 0.0f) {
+        if (battery.reservePower(power, false) > 0.0f) {
             cam.cameraTurnUp();
         }
     }

@@ -14,6 +14,7 @@ import com.jme3.math.Vector3f;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
 
+
 public class ArmModule extends AbstractModule implements RagdollCollisionListener {
 
     private Vector3f armRootBoneRotation = new Vector3f(0, 0, 0);
@@ -27,7 +28,7 @@ public class ArmModule extends AbstractModule implements RagdollCollisionListene
     private KinematicRagdollControl armRagDoll;
     private RigidBodyControl grabbedObject = null;
 
-    public ArmModule(DoesitRoverModernState vehicleState) {
+    public ArmModule(DoesitRoverModern vehicleState) {
         super(vehicleState);
         this.armPosition = new Vector3f(-0.7f, 1.0f, -1.6f);
         this.setVector3f("ArmPosition", armPosition);
@@ -52,13 +53,16 @@ public class ArmModule extends AbstractModule implements RagdollCollisionListene
 
     @Override
     public void setup(Node model) {
+        //DEPENDENCY
+        dependency.add(CarModule.class);
+        
         //GEOMETRY CONFIGURATION
         armModelNode = new Node("armNode");
         Node arm = (Node) model.getChild("GrabberArmature");
         arm.move(armPosition);
 
         armModelNode.attachChild(arm);
-        rover.getNode().attachChild(armModelNode);
+        actor.getNode().attachChild(armModelNode);
 
 
         //PHYSICS CONFIGURATION
@@ -74,7 +78,7 @@ public class ArmModule extends AbstractModule implements RagdollCollisionListene
         armRagDoll.addCollisionListener(this);
         armature.addControl(armRagDoll);
         armRagDoll.addBoneName("root");
-        rover.getPhysics().getPhysicsSpace().add(armRagDoll);
+        actor.getPhysics().getPhysicsSpace().add(armRagDoll);
     }
 
     public void collide(Bone bone, PhysicsCollisionObject object, PhysicsCollisionEvent event) {
@@ -101,7 +105,7 @@ public class ArmModule extends AbstractModule implements RagdollCollisionListene
 
     @Override
     public void act(String actionName) {
-        getAction(actionName).exec(this, rover);
+        getAction(actionName).exec(this, actor);
     }
 
     public void armTurnLeft() {
@@ -282,7 +286,7 @@ public class ArmModule extends AbstractModule implements RagdollCollisionListene
         return grabbedObject;
     }
 
-    public void update() {
+    public void update(float fps) {
         if (grabbedObject != null) {
             Vector3f pos = armRagDoll.getBoneRigidBody("finger").getPhysicsLocation();
             pos = pos.add(new Vector3f(0, -1, 0));
@@ -292,10 +296,10 @@ public class ArmModule extends AbstractModule implements RagdollCollisionListene
 }
 
 class ArmTurnRight implements ModuleAction {
-
-    public void exec(AbstractModule module, DoesitRoverModernState state) {
+    public void exec(AbstractModule module, AbstractActor state) {
+        BatteryProfile battery = state.getModule(CarModule.class).getBattery();
         float power = module.getPowerProfile().getActionRequiredPower("TurnRight");
-        if (state.getBattery().reservePower(power, false) > 0.0f){ 
+        if (battery.reservePower(power, false) > 0.0f){ 
             ((ArmModule) module).armTurnRight();
         }
     }
@@ -303,9 +307,10 @@ class ArmTurnRight implements ModuleAction {
 
 class ArmTurnLeft implements ModuleAction {
 
-    public void exec(AbstractModule module, DoesitRoverModernState state) {
+    public void exec(AbstractModule module, AbstractActor state) {
+        BatteryProfile battery = state.getModule(CarModule.class).getBattery();
         float power = module.getPowerProfile().getActionRequiredPower("TurnLeft");
-        if (state.getBattery().reservePower(power, false) > 0.0f){ 
+        if (battery.reservePower(power, false) > 0.0f){ 
             ((ArmModule) module).armTurnLeft();
         }
     }
@@ -313,9 +318,10 @@ class ArmTurnLeft implements ModuleAction {
 
 class ArmTurnDown implements ModuleAction {
 
-    public void exec(AbstractModule module, DoesitRoverModernState state) {
+    public void exec(AbstractModule module, AbstractActor state) {
+        BatteryProfile battery = state.getModule(CarModule.class).getBattery();
         float power = module.getPowerProfile().getActionRequiredPower("TurnDown");
-        if (state.getBattery().reservePower(power, false) > 0.0f){ 
+        if (battery.reservePower(power, false) > 0.0f){ 
             ((ArmModule) module).armTurnDown();
         }    
     }
@@ -323,19 +329,20 @@ class ArmTurnDown implements ModuleAction {
 
 class ArmTurnUp implements ModuleAction {
 
-    public void exec(AbstractModule module, DoesitRoverModernState state) {
+    public void exec(AbstractModule module, AbstractActor state) {
+        BatteryProfile battery = state.getModule(CarModule.class).getBattery();
         float power = module.getPowerProfile().getActionRequiredPower("TurnUp");
-        if (state.getBattery().reservePower(power, false) > 0.0f){ 
+        if (battery.reservePower(power, false) > 0.0f){ 
             ((ArmModule) module).armTurnUp();
         }
     }
 }
 
 class SketcheArm implements ModuleAction {
-
-    public void exec(AbstractModule module, DoesitRoverModernState state) {
+    public void exec(AbstractModule module, AbstractActor state) {
+        BatteryProfile battery = state.getModule(CarModule.class).getBattery();
         float power = module.getPowerProfile().getActionRequiredPower("Sketche");
-        if (state.getBattery().reservePower(power, false) > 0.0f){ 
+        if (battery.reservePower(power, false) > 0.0f){ 
             ((ArmModule) module).sketcheArm();
         }
     }
@@ -343,10 +350,11 @@ class SketcheArm implements ModuleAction {
 
 class ShortenArm implements ModuleAction {
 
-    public void exec(AbstractModule module, DoesitRoverModernState state) {
+    public void exec(AbstractModule module, AbstractActor state) {
+        BatteryProfile battery = state.getModule(CarModule.class).getBattery();
         ((ArmModule) module).shortenArm();
         float power = module.getPowerProfile().getActionRequiredPower("Shorten");
-        if (state.getBattery().reservePower(power, false) > 0.0f){ 
+        if (battery.reservePower(power, false) > 0.0f){ 
             ((ArmModule) module).shortenArm();
         }
     }
@@ -354,9 +362,10 @@ class ShortenArm implements ModuleAction {
 
 class GrabberDrop implements ModuleAction {
     
-    public void exec(AbstractModule module, DoesitRoverModernState state) {
+    public void exec(AbstractModule module, AbstractActor state) {
+        BatteryProfile battery = state.getModule(CarModule.class).getBattery();
         float power = module.getPowerProfile().getActionRequiredPower("Drop");
-        if (state.getBattery().reservePower(power, false) > 0.0f){ 
+        if (battery.reservePower(power, false) > 0.0f){ 
             ((ArmModule) module).grabberDrop();
         }
     }
@@ -364,10 +373,12 @@ class GrabberDrop implements ModuleAction {
 
 class GrabberGrab implements ModuleAction {
 
-    public void exec(AbstractModule module, DoesitRoverModernState state) {
+    public void exec(AbstractModule module, AbstractActor state) {
+        BatteryProfile battery = state.getModule(CarModule.class).getBattery();
         float power = module.getPowerProfile().getActionRequiredPower("Grab");
-        if (state.getBattery().reservePower(power, false) > 0.0f){ 
+        if (battery.reservePower(power, false) > 0.0f){ 
             ((ArmModule) module).grabberGrab();
         }
     }
 }
+

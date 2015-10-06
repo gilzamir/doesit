@@ -29,9 +29,10 @@ public class SimulationApp extends SimpleApplication implements ActionListener {
     private float steeringValue = 0;
     private float accelerationValue = 0;
 
-    private DoesitRoverModernState roverState;
+    private DoesitRoverModern roverState;
     private ArmModule roverArm;
     private CameraModule roverCamera;
+    private CarModule carModule;
             
     private Box rock = new Box(0.5f, 0.5f, 0.5f);
     private Camera mainCamera;
@@ -59,11 +60,15 @@ public class SimulationApp extends SimpleApplication implements ActionListener {
         configureCamera();
         configureObjects();
         configurePhysics();        
-        roverState = new DoesitRoverModernState(400, 200);
+        
+        roverState = new DoesitRoverModern(this);
         roverArm = new ArmModule(roverState);
         roverCamera = new CameraModule(roverState);
-        roverState.addModule("Arm", roverArm);
-        roverState.addModule("Camera", roverCamera);
+        carModule = new CarModule(roverState,400);
+        carModule.setObject("WorldTime", worldTimeState);
+        roverState.addModule(CarModule.class, carModule);
+        roverState.addModule(ArmModule.class, roverArm);
+        roverState.addModule(CameraModule.class, roverCamera);
         
         stateManager.attach(roverState);
         
@@ -76,7 +81,7 @@ public class SimulationApp extends SimpleApplication implements ActionListener {
     
     @Override
     public void simpleUpdate(float tpf) {
-        hoverEnergyText.setText("Hover Energy: " + roverState.getPower());
+        hoverEnergyText.setText("Hover Energy: " + carModule.getBattery().getPower());
         updateCam();
     }
 
@@ -86,7 +91,7 @@ public class SimulationApp extends SimpleApplication implements ActionListener {
     
     private void updateCam() {
         cam.setLocation(roverState.getNode().getLocalTranslation().add(new Vector3f(-10,25, -10)));
-        cam.lookAt(roverState.getControl().getPhysicsLocation(), Vector3f.UNIT_Y);
+        cam.lookAt(carModule.getControl().getPhysicsLocation(), Vector3f.UNIT_Y);
     }
 
     private void configureCamera() {
@@ -201,34 +206,34 @@ public class SimulationApp extends SimpleApplication implements ActionListener {
             } else {
                 steeringValue += 0.5f;
             }
-            roverState.steer(steeringValue);
+            carModule.steer(steeringValue);
         } else if (name.equals("Rotate Right")) {
             if (isPressed) {
                 steeringValue += 0.5f;
             } else {
                 steeringValue -= 0.5f;
             }
-            roverState.steer(steeringValue);
+            carModule.steer(steeringValue);
         } else if (name.equals("Forward")) {
             if (isPressed) {
                 accelerationValue += acceleration;
             } else {
                 accelerationValue -= acceleration;
             }
-            roverState.accelerate(accelerationValue);
+            carModule.accelerate(accelerationValue);
         } else if (name.equals("Back")) {
             if (isPressed) {
                 accelerationValue -= acceleration;
             } else {
                 accelerationValue += acceleration;
             }
-            roverState.accelerate(accelerationValue);
+            carModule.accelerate(accelerationValue);
         } else if (name.equals("Brake")) {
             
             if (isPressed) {
-                roverState.brake(brakeForce);
+                carModule.brake(brakeForce);
             } else {
-                roverState.brake(0);
+                carModule.brake(0);
             }
         } else if (name.equals("Arm turn left")) {
             if (isPressed){
