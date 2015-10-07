@@ -1,11 +1,13 @@
 package gilzamir.doesit.sim;
 
 import com.jme3.bullet.BulletAppState;
+import com.jme3.bullet.PhysicsSpace;
+import com.jme3.bullet.PhysicsTickListener;
 import com.jme3.bullet.collision.shapes.CollisionShape;
 import com.jme3.bullet.collision.shapes.CompoundCollisionShape;
 import com.jme3.bullet.collision.shapes.GImpactCollisionShape;
-import com.jme3.bullet.control.RigidBodyControl;
 import com.jme3.bullet.control.VehicleControl;
+import com.jme3.collision.CollisionResults;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Matrix3f;
 import com.jme3.math.Matrix4f;
@@ -13,12 +15,12 @@ import com.jme3.math.Transform;
 import com.jme3.math.Vector3f;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
+import com.jme3.scene.Spatial;
 import com.jme3.scene.VertexBuffer;
 import java.nio.FloatBuffer;
-import java.util.ArrayList;
 import java.util.List;
 
-public class CarModule extends AbstractModule {
+public class CarModule extends AbstractModule   implements PhysicsTickListener {
     private VehicleControl roverControl;
     private CollisionShape roverShape;
     private float mass;
@@ -33,7 +35,7 @@ public class CarModule extends AbstractModule {
     private float wheelRadius = 0.5f, yOff = 0.9f, xOff = 3.0f, zOff = 3.6f, restLenght = 0.4f;
     
     private final int maxGrabbed = 50;
-    private List<RigidBodyControl> grabbedList = new ArrayList<RigidBodyControl>(maxGrabbed);
+
     private EnginePowerProfile enginePowerProfile;
     
     
@@ -105,7 +107,7 @@ public class CarModule extends AbstractModule {
                 wheelDirection, wheelAxle, restLenght, wheelRadius, false);
 
         physics.getPhysicsSpace().add(roverControl);
-        
+        physics.getPhysicsSpace().addTickListener(this);
         //CONFIGURE ACTIONS
         
     }
@@ -118,7 +120,6 @@ public class CarModule extends AbstractModule {
         return battery;
     }
 
-    
     @Override
     public void update(float fps) {
         super.update(fps);
@@ -134,6 +135,7 @@ public class CarModule extends AbstractModule {
                 steer(0);
             }
         }    
+        //System.out.println("GrabbedObjects: " + countGrabbed);
     }
     
     public void brake(float force) {
@@ -197,7 +199,7 @@ public class CarModule extends AbstractModule {
             timeState.getReflectionColor(g.getMaterial(), storePos, storeNorm, colorResult, 0);
             e += colorResult.b;
         }
-        System.out.println(e);
+        //System.out.println(e);
         return e * enginePowerProfile.solarPanelEfficiency;
     }
     
@@ -220,5 +222,39 @@ public class CarModule extends AbstractModule {
 
     public EnginePowerProfile getEnginePowerProfile() {
         return enginePowerProfile;
+    }
+
+    public void prePhysicsTick(PhysicsSpace space, float tpf) {
+        countGrabbed = 0;
+    }
+
+    private Node collectable;
+    private Spatial[] grabbedObjects = new Spatial[50];
+    private int countGrabbed = 0;
+    public void physicsTick(PhysicsSpace space, float tpf) {
+        if (collectable == null) {
+            collectable = (Node)actor.application.getRootNode().getChild("Scene");
+            collectable = (Node)collectable.getChild("Collectable");
+        }
+        Geometry chassi =  (Geometry) actor.getNode().getChild("chassi3");
+        CollisionResults results = new CollisionResults();
+        List<Spatial> rocks = collectable.getChildren();
+        for (Spatial rock : rocks) {
+            if (rock.collideWith(chassi.getWorldBound(), results) > 0) {
+                grabbedObjects[countGrabbed] = rock;
+                countGrabbed++;
+            }
+        }
+    }
+    
+    public int countGrabbedObjects() {
+        return countGrabbed;
+    }
+    
+    public Spatial getGrabbedObject(int idx) {
+        if (idx >= countGrabbed) {
+            throw new ArrayIndexOutOfBoundsException(idx);
+        }
+        return grabbedObjects[idx];
     }
 }

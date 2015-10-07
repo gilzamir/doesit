@@ -40,6 +40,7 @@ public class SimulationApp extends SimpleApplication implements ActionListener {
     private final int numberOfRocks=50;
     BitmapText hoverEnergyText;
     WorldTimeState worldTimeState;
+    private Node collectableNode = new Node("Collectable");
     
     @Override
     public void simpleInitApp() {
@@ -158,8 +159,9 @@ public class SimulationApp extends SimpleApplication implements ActionListener {
             int y = 50;
             int z = FastMath.rand.nextInt(20)-10;
             rockGeo[i].move(new Vector3f(x, y, z));
-            sceneNode.attachChild(rockGeo[i]);
+            collectableNode.attachChild(rockGeo[i]);
         }
+        sceneNode.attachChild(collectableNode);
     }
     
     private void configurePhysics() {

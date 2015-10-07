@@ -286,6 +286,7 @@ public class ArmModule extends AbstractModule implements RagdollCollisionListene
         return grabbedObject;
     }
 
+    @Override
     public void update(float fps) {
         if (grabbedObject != null) {
             Vector3f pos = armRagDoll.getBoneRigidBody("finger").getPhysicsLocation();
