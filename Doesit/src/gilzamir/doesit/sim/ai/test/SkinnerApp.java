@@ -87,7 +87,7 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
         
         
         inputManager.addListener(this, "ToogleRed", "ToogleGreen", "ToogleBlue",
-                "Stimulate");
+                "Stimulate", "ToogleNoise");
         
     }
 
@@ -104,6 +104,7 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
             neuralNet.setInput(in[1], getLightState(lightGreen) * noise);
             neuralNet.setInput(in[2], getLightState(lightBlue) * noise);
             neuralNet.setInput(in[3], 100 * noise);
+            System.out.println("NOISE: " + noise);
             neuralNet.process();
             double out[] = neuralNet.getOutput();
             
