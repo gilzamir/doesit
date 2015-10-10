@@ -25,7 +25,7 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
     private NeuralNet neuralNet;
     private SpotLight lightRed, lightGreen, lightBlue;
     private boolean stimulate = false;
-    private Light currentLight = null;
+    private int noise = 1;
     
     @Override
     public void simpleInitApp() {
@@ -83,6 +83,7 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
         inputManager.addMapping("ToogleGreen", new KeyTrigger(KeyInput.KEY_G));        
         inputManager.addMapping("ToogleBlue", new KeyTrigger(KeyInput.KEY_B));        
         inputManager.addMapping("Stimulate", new KeyTrigger(KeyInput.KEY_S));
+        inputManager.addMapping("ToogleNoise", new KeyTrigger(KeyInput.KEY_A));
         
         
         inputManager.addListener(this, "ToogleRed", "ToogleGreen", "ToogleBlue",
@@ -99,10 +100,10 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
         super.update(); //To change body of generated methods, choose Tools | Templates.
         if (stimulate && neuralNet != null) {
             int[] in = neuralNet.getInputs();
-            neuralNet.setInput(in[0], getLightState(lightRed));
-            neuralNet.setInput(in[1], getLightState(lightGreen));
-            neuralNet.setInput(in[2], getLightState(lightBlue));
-            neuralNet.setInput(in[3], 100);
+            neuralNet.setInput(in[0], getLightState(lightRed) * noise);
+            neuralNet.setInput(in[1], getLightState(lightGreen) * noise);
+            neuralNet.setInput(in[2], getLightState(lightBlue) * noise);
+            neuralNet.setInput(in[3], 100 * noise);
             neuralNet.process();
             double out[] = neuralNet.getOutput();
             
@@ -190,6 +191,10 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
         } else  if (name.equals("Stimulate")) {
             if (isPressed) {
                 stimulate = true;
+            }
+        } else if (name.equals("ToogleNoise")) {
+            if (isPressed) {
+                noise = -noise;
             }
         }
     }

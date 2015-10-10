@@ -2,7 +2,6 @@ package gilzamir.doesit.sim.ai.test;
 
 import gilzamir.doesit.sim.ai.NeuralNetGenetic;
 import gilzamir.doesit.sim.ai.NeuralNetGenome;
-import java.util.Arrays;
 import multinet.net.NeuralNet;
 import multinet.net.genetic.Genome;
 
