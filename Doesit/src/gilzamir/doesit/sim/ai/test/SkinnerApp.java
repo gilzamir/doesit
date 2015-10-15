@@ -26,6 +26,7 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
     private SpotLight lightRed, lightGreen, lightBlue;
     private boolean stimulate = false;
     private int noise = 1;
+    private boolean automatic = false;
     
     @Override
     public void simpleInitApp() {
@@ -83,11 +84,11 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
         inputManager.addMapping("ToogleGreen", new KeyTrigger(KeyInput.KEY_G));        
         inputManager.addMapping("ToogleBlue", new KeyTrigger(KeyInput.KEY_B));        
         inputManager.addMapping("Stimulate", new KeyTrigger(KeyInput.KEY_S));
-        inputManager.addMapping("ToogleNoise", new KeyTrigger(KeyInput.KEY_A));
-        
+        inputManager.addMapping("ToogleNoise", new KeyTrigger(KeyInput.KEY_T));
+        inputManager.addMapping("ToogleAutomatic", new KeyTrigger(KeyInput.KEY_A));
         
         inputManager.addListener(this, "ToogleRed", "ToogleGreen", "ToogleBlue",
-                "Stimulate", "ToogleNoise");
+                "Stimulate", "ToogleNoise", "ToogleAutomatic");
         
     }
 
@@ -95,15 +96,47 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
         this.neuralNet = neuralNet;
     }
 
+    private long automaticTime = 0;
+    private  float lightReward[] = {-1.0f, 1.0f, 1.0f};
+    private float reward;
     @Override
     public void update() {
         super.update(); //To change body of generated methods, choose Tools | Templates.
+        
+        if (automatic) {
+            long curTime = System.currentTimeMillis();
+            if (curTime - automaticTime > 100) {
+                stimulate = true;
+                automaticTime = curTime;
+            }
+        }
+        
         if (stimulate && neuralNet != null) {
+            reward = 0;
+
+            if (getLightState(lightRed) == 1.0) {
+                reward -= 1.0f;
+            } else {
+                reward += 1.0f;
+            }
+
+            if (getLightState(lightGreen) == 1.0) {
+                reward += 1.0f;
+            } else {
+                reward -= 1.0f;
+            }
+
+            if (getLightState(lightBlue) == 1.0) {
+                reward += 1.0f;
+            } else {
+                reward -= 1.0f;
+            }
+            
             int[] in = neuralNet.getInputs();
             neuralNet.setInput(in[0], getLightState(lightRed) * noise);
             neuralNet.setInput(in[1], getLightState(lightGreen) * noise);
             neuralNet.setInput(in[2], getLightState(lightBlue) * noise);
-            neuralNet.setInput(in[3], 100 * noise);
+            neuralNet.setInput(in[3], 100);
             System.out.println("NOISE: " + noise);
             neuralNet.process();
             double out[] = neuralNet.getOutput();
@@ -196,6 +229,10 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
         } else if (name.equals("ToogleNoise")) {
             if (isPressed) {
                 noise = -noise;
+            }
+        } else if (name.equals("ToogleAutomatic")) {
+            if (isPressed) {
+                automatic = true;
             }
         }
     }

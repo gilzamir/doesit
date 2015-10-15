@@ -3,6 +3,8 @@ package gilzamir.doesit.sim.ai.test;
 import gilzamir.doesit.sim.ai.NeuralNetGenetic;
 import gilzamir.doesit.sim.ai.NeuralNetGenome;
 import multinet.net.NeuralNet;
+import multinet.net.NeuralNetEvent;
+import multinet.net.NeuralNetListener;
 import multinet.net.genetic.Genome;
 
 public class TestSkinnerLikeEvaluator {
@@ -23,6 +25,14 @@ public class TestSkinnerLikeEvaluator {
         
         Genome ge = genetic.getOrganism()[0];
         NeuralNet net =  (NeuralNet) ge.decode();
+        System.out.println(net.toString());
+        net.setListener(new NeuralNetListener() {
+            public void handleUpdateWeight(NeuralNetEvent evt) {
+                if (evt != null) {
+                    System.out.println(evt.getMessage());
+                }
+            }
+        });
         
         SkinnerApp.startApp(net);       
     }
