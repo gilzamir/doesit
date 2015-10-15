@@ -9,7 +9,6 @@ import multinet.net.UpdateWeightLocal;
 import multinet.net.genetic.Encoding;
 import multinet.net.genetic.EncodingGenerator;
 import multinet.net.genetic.Evaluable;
-import multinet.net.genetic.GeneLayout32;
 import multinet.net.genetic.Genome;
 
 public class NeuralNetGenome extends Genome {
@@ -27,12 +26,9 @@ public class NeuralNetGenome extends Genome {
         NeuralNet net = new NeuralNet(new UpdateWeightLocal());
         net.setPlasticityEnabled(true);
         Encoding global = getChromossome(0);
-        net.A = global.getAsFloat(0, -1.0f, 1.0f);
-        //net.B = global.getAsFloat(1, -1.0f, 1.0f);
-        //net.C = global.getAsFloat(2, -1.0f, 1.0f);
-        //net.D = global.getAsFloat(3, -1.0f, 1.0f);
-        net.restInput = global.getAsFloat(1, -1.0f, 1.0f);
-        net.setLearningRate(global.getAsFloat(2, 0.0f, 1.0f));
+        
+        net.restInput = global.getAsFloat(0, -1.0f, 1.0f);
+        net.setLearningRate(global.getAsFloat(1, 0.0f, 1.0f));
         
         Encoding body = getChromossome(1);
         Encoding amp = null;
@@ -52,7 +48,7 @@ public class NeuralNetGenome extends Genome {
             BitSet gene = body.getGene(i);
             int ID = Encoding.toInt(gene, 0, 8);
             
-            float value = Encoding.toInt(gene, 8, 32)/(float)GeneLayout32.MAX_INT24;
+            float value = Encoding.toInt(gene, 8, 32)/(float)Encoding.MAX_INT24;
             if (ID <= 51) {
                 current = new ProtoNeuron();
                 current.ID = ID;
@@ -231,7 +227,6 @@ class FixedInputOutputGenerator implements EncodingGenerator {
         for (; i < enc.getNumberOfGenes(); i++) {
             boolean gene[] = new boolean[32];
             Encoding.randomBoolean(gene);
-           // gene[2] = true;
             enc.setGene(i, gene);
         }
         return enc;
