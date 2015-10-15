@@ -5,7 +5,7 @@ import java.util.LinkedList;
 import multinet.net.NeuralNet;
 import multinet.net.Neuron;
 import multinet.net.NeuronType;
-import multinet.net.UpdateWeightGlobal;
+import multinet.net.UpdateWeightLocal;
 import multinet.net.genetic.Encoding;
 import multinet.net.genetic.EncodingGenerator;
 import multinet.net.genetic.Evaluable;
@@ -16,6 +16,7 @@ public class NeuralNetGenome extends Genome {
     public static  int INPUTS = 3;
     public static  int OUTPUTS = 1;
     public static  int PROCESSING = 100;
+    public static int CHROMOSSOMES = 6;
     
     public NeuralNetGenome(int size) {
         super(size);
@@ -23,17 +24,28 @@ public class NeuralNetGenome extends Genome {
 
     @Override
     public Evaluable decode() {
-        NeuralNet net = new NeuralNet(new UpdateWeightGlobal());
+        NeuralNet net = new NeuralNet(new UpdateWeightLocal());
         net.setPlasticityEnabled(true);
         Encoding global = getChromossome(0);
-        net.A = global.getAsFloat(0, -10.0f, 10.0f);
-        net.B = global.getAsFloat(1, -10.0f, 10.0f);
-        net.C = global.getAsFloat(2, -10.0f, 10.0f);
-        net.D = global.getAsFloat(3, -10.0f, 10.0f);
-        net.restInput = global.getAsFloat(4, -10.0f, 10.0f);
-        net.setLearningRate(global.getAsFloat(5, 0.0f, 1.0f));
+        net.A = global.getAsFloat(0, -1.0f, 1.0f);
+        //net.B = global.getAsFloat(1, -1.0f, 1.0f);
+        //net.C = global.getAsFloat(2, -1.0f, 1.0f);
+        //net.D = global.getAsFloat(3, -1.0f, 1.0f);
+        net.restInput = global.getAsFloat(1, -1.0f, 1.0f);
+        net.setLearningRate(global.getAsFloat(2, 0.0f, 1.0f));
         
         Encoding body = getChromossome(1);
+        Encoding amp = null;
+        Encoding shift = null;
+        Encoding learningRate  = null;
+        Encoding learningMethod = null;
+        
+        if (size() >= CHROMOSSOMES) {
+            amp  = getChromossome(2);
+            shift = getChromossome(3);
+            learningRate = getChromossome(4);
+            learningMethod = getChromossome(5);
+        }
         LinkedList<ProtoNeuron> neurons = new LinkedList<ProtoNeuron>();
         ProtoNeuron current = null;
         for (int i = 0; i < body.getNumberOfGenes(); i++) {
@@ -46,6 +58,22 @@ public class NeuralNetGenome extends Genome {
                 current.ID = ID;
                 current.value = value;
                 current.binary = gene;
+                if (amp != null && shift != null && learningRate != null
+                        && learningMethod != null) {
+                    current.amp = amp.getAsFloat(i, 0.0f, 1.0f);
+                    current.learningRate = learningRate.getAsFloat(i, -1.0f, 1.0f);
+                    current.shift = shift.getAsFloat(i, -1.0f, 1.0f);
+                    float method = learningMethod.getAsFloat(i, 0.0f, 1.0f);
+                    if (method <= 0.25f) {
+                        current.learningMethod = 0;
+                    } else if (method <= 0.5f) {
+                        current.learningMethod = 1;
+                    } else if (method <= 0.75) {
+                        current.learningMethod = 2;
+                    } else {
+                        current.learningMethod = 3;
+                    }
+                }
                 current.t1 = current.t2 = null;
             } else {
                 if (current != null) {
@@ -82,21 +110,25 @@ public class NeuralNetGenome extends Genome {
                 int netid = net.addCell(NeuronType.OUTPUT);
                 ne = net.getNeuron(netid);
                 proto.ID = netid;
-            } else if (proto.ID < 43) {
+            } else /*if (proto.ID < 43)*/ {
                 int netid = net.addCell(NeuronType.NORMAL);
                 ne = net.getNeuron(netid);
                 proto.ID = netid;
-            } else  {
+            } /*else  {
                 int netid = net.addCell(NeuronType.MODULATORY);
                 ne = net.getNeuron(netid);
                 proto.ID = netid;
-            }
+            }*/
             ne.setGain(proto.value);
             ne.setTimeConstant(proto.value);
+            ne.setAmp(proto.amp);
+            ne.setShift(proto.shift);
+            ne.setLearningRate(proto.learningRate);
+            ne.setLearningMethod(proto.learningMethod);
             ne.setBias(0.0);
         }
+        
         net.prepare(-10, 10);
-                
         
         if (net.getInputSize() != INPUTS || net.getOutputSize() != OUTPUTS) {
             return null;
@@ -140,7 +172,8 @@ public class NeuralNetGenome extends Genome {
 
 class ProtoNeuron {
     public int ID;
-    public float value;
+    public int learningMethod;
+    public float value, amp, shift, learningRate;
     public Terminal t1, t2;
     public BitSet binary;
 }
