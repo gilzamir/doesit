@@ -14,11 +14,15 @@ public class NeuralNetGenetic  extends Genetic {
 
     @Override
     public Genome newGenome() {
-        final int numberOfChr  = 2;
+        final int numberOfChr  = NeuralNetGenome.CHROMOSSOMES;
         final int inputs = NeuralNetGenome.INPUTS;
         final int outputs = NeuralNetGenome.OUTPUTS;
         final int genes = (inputs+outputs) * 3 + NeuralNetGenome.PROCESSING;
-        final int numberOfGenes[] = new int[]{6, genes};
+        final int numberOfGenes[] = new int[numberOfChr];
+        numberOfGenes[0] = 3;
+        for (int i = 0; i < numberOfChr; i++) {
+            numberOfGenes[i] = genes;
+        }
         
         NeuralNetGenome genome = new NeuralNetGenome(numberOfChr);
         for (int i = 0; i < numberOfChr; i++) {
