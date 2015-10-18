@@ -19,7 +19,7 @@ public class NeuralNetGenetic  extends Genetic {
         final int outputs = NeuralNetGenome.OUTPUTS;
         final int genes = (inputs+outputs) * 3 + NeuralNetGenome.PROCESSING;
         final int numberOfGenes[] = new int[numberOfChr];
-        numberOfGenes[0] = 2;
+        numberOfGenes[0] = 4;
         for (int i = 0; i < numberOfChr; i++) {
             numberOfGenes[i] = genes;
         }
