@@ -17,11 +17,10 @@ public class TestSkinnerLikeEvaluator {
         SkinnerLikeEvaluator ev = new SkinnerLikeEvaluator();
         
         genetic.setupPopulation();
-        for (int i = 0; i < 20; i++) {
+        for (int i = 0; i < 30; i++) {
             System.out.println(genetic.evaluate(ev));
             genetic.next();
         }
-        
         
         Genome ge = genetic.getOrganism()[0];
         NeuralNet net =  (NeuralNet) ge.decode();

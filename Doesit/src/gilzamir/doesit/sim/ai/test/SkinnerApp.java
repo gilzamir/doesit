@@ -5,6 +5,7 @@ import com.jme3.input.KeyInput;
 import com.jme3.input.controls.ActionListener;
 import com.jme3.input.controls.KeyTrigger;
 import com.jme3.light.AmbientLight;
+import com.jme3.light.DirectionalLight;
 import com.jme3.light.Light;
 import com.jme3.light.PointLight;
 import com.jme3.light.SpotLight;
@@ -62,9 +63,15 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
         lightBlue.setSpotOuterAngle(180f * FastMath.DEG_TO_RAD);
         
         
-        PointLight light = new PointLight();
-        light.setPosition(actor.getWorldTranslation().add(0, 10, 0));
-        light.setColor(ColorRGBA.White);
+        DirectionalLight light1 = new DirectionalLight();
+        light1.setDirection( (new Vector3f(1.0f, 1.0f, 1.0f)).normalize());
+        light1.setColor(ColorRGBA.White);
+        
+        DirectionalLight light2 = new DirectionalLight();
+        light2.setDirection( (new Vector3f(-1.0f, -1.0f, -1.0f)).normalize());
+        light2.setColor(ColorRGBA.White);
+        
+        
         
         AmbientLight amb = new AmbientLight();
         amb.setColor(ColorRGBA.LightGray);
@@ -73,7 +80,8 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
         rootNode.addLight(lightRed);
         rootNode.addLight(lightGreen);
         rootNode.addLight(lightBlue);
-        rootNode.addLight(light);
+        rootNode.addLight(light1);
+        rootNode.addLight(light2);
         
         flyCam.setEnabled(false);
         cam.setLocation(new Vector3f(-15.320519f, 12.324081f, 14.880732f));

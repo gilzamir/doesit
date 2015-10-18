@@ -57,6 +57,7 @@ public class SkinnerLikeEvaluator implements Evaluator {
             }
             energy--;
         }
+       // float prate = (net.getSize()-net.numberOfUpdates)/(float)net.getSize();
         gen.setFitness(fitness);
     }
     

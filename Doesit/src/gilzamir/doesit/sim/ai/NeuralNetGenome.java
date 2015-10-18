@@ -5,7 +5,7 @@ import java.util.LinkedList;
 import multinet.net.NeuralNet;
 import multinet.net.Neuron;
 import multinet.net.NeuronType;
-import multinet.net.UpdateWeightLisuka;
+import multinet.net.UpdateWeightGil;
 import multinet.net.genetic.Encoding;
 import multinet.net.genetic.EncodingGenerator;
 import multinet.net.genetic.Evaluable;
@@ -23,7 +23,7 @@ public class NeuralNetGenome extends Genome {
 
     @Override
     public Evaluable decode() {
-        NeuralNet net = new NeuralNet(new UpdateWeightLisuka());
+        NeuralNet net = new NeuralNet(new UpdateWeightGil());
         net.setPlasticityEnabled(true);
         Encoding global = getChromossome(0);
         
@@ -31,6 +31,7 @@ public class NeuralNetGenome extends Genome {
         net.weightGain = global.getAsFloat(1, -100, 100);
         net.lambda = global.getAsFloat(2, -0.5f, 0.5f);
         net.setLearningRate(global.getAsFloat(3, 0.01f, 1.0f));
+        net.outputGain = global.getAsFloat(4, 0, 1);
         
         Encoding body = getChromossome(1);
         Encoding amp = null;
@@ -112,6 +113,7 @@ public class NeuralNetGenome extends Genome {
             ne.setAmp(proto.amp);
             ne.setLearningRate(proto.learningRate);
             ne.setLearningMethod(proto.learningMethod);
+            ne.setShift(proto.shift);
             ne.setBias(0.0);
         }
         
