@@ -5,11 +5,13 @@ import java.util.LinkedList;
 import multinet.net.NeuralNet;
 import multinet.net.Neuron;
 import multinet.net.NeuronType;
+import multinet.net.ThresholdType;
 import multinet.net.UpdateWeightGil;
 import multinet.net.genetic.Encoding;
 import multinet.net.genetic.EncodingGenerator;
 import multinet.net.genetic.Evaluable;
 import multinet.net.genetic.Genome;
+
 
 public class NeuralNetGenome extends Genome {
     public static  int INPUTS = 3;
@@ -19,7 +21,7 @@ public class NeuralNetGenome extends Genome {
     
     public NeuralNetGenome(int size) {
         super(size);
-    }
+    } 
 
     @Override
     public Evaluable decode() {
@@ -29,19 +31,17 @@ public class NeuralNetGenome extends Genome {
         
         net.restInput = global.getAsFloat(0, -1f, 1f);
         net.weightGain = global.getAsFloat(1, -100, 100);
-        net.lambda = global.getAsFloat(2, -0.5f, 0.5f);
-        net.setLearningRate(global.getAsFloat(3, 0.01f, 1.0f));
-        net.outputGain = global.getAsFloat(4, 0, 1);
+        net.outputGain = global.getAsFloat(2, 0, 1);
         
         Encoding body = getChromossome(1);
         Encoding amp = null;
-        Encoding plasticity  = null;
-        Encoding shift = null;
+        Encoding shift  = null;
+        Encoding plasticity = null;
         
         if (size() >= CHROMOSSOMES) {
-            plasticity = getChromossome(2);
-            amp  = getChromossome(3);
-            shift = getChromossome(4);
+            amp = getChromossome(2);
+            shift = getChromossome(3);
+            plasticity = getChromossome(4);
         }
         LinkedList<ProtoNeuron> neurons = new LinkedList<ProtoNeuron>();
         ProtoNeuron current = null;
@@ -57,8 +57,8 @@ public class NeuralNetGenome extends Genome {
                 current.binary = gene;
                
                 if (amp != null && shift != null) {
-                    current.amp = amp.getAsFloat(i, 0.0f, 1.0f);
-                    current.shift = amp.getAsFloat(i, -0.5f, 0.5f);
+                    current.amp = amp.getAsFloat(i, 0.01f, 1.0f);
+                    current.shift = shift.getAsFloat(i, -1.0f, 1.0f);
                 }
                 current.t1 = current.t2 = null;
             } else {
@@ -68,7 +68,7 @@ public class NeuralNetGenome extends Genome {
                     t.ID = ID;
                     t.value = value;
                     if (plasticity != null) {
-                        t.plasticity = plasticity.getAsFloat(i, -0.5f, 0.5f);
+                        t.plasticity = plasticity.getAsFloat(i, 0.0f, 0.5f);
                     }
                     if (current.t1 == null) {
                         current.t1 = t;
@@ -110,10 +110,21 @@ public class NeuralNetGenome extends Genome {
             }*/
             ne.setGain(proto.value);
             ne.setTimeConstant(proto.value);
-            ne.setAmp(proto.amp);
+            if (ne.getType() != NeuronType.OUTPUT) {
+                ne.setGain(1.0f);
+            }
             ne.setLearningRate(proto.learningRate);
             ne.setLearningMethod(proto.learningMethod);
+            ne.setOutputThreshold(proto.amp);
+            ne.setAmp(proto.amp);
             ne.setShift(proto.shift);
+            
+            if (proto.shift >= 0.0) {
+                ne.setThresholdRule(ThresholdType.MAX);
+            } else {
+                ne.setThresholdRule(ThresholdType.MIN);
+            }
+            
             ne.setBias(0.0);
         }
         
@@ -137,7 +148,7 @@ public class NeuralNetGenome extends Genome {
                 int eb = countEquals(b1, b2, 32);
                 double w = 0.0f;
                 if ((eb / 4) % 3 != 0) {
-                    w = 10.0f * ((eb * (in + out)) / (32.0f)) - 5.0f;
+                    w = 30.0f * ((eb * (in + out)) / (32.0f)) - 15.0f;
                 }
 
                 net.setPlasticity(ni.ID, nj.ID, (ti.plasticity + tj.plasticity) * 0.5f);
@@ -159,7 +170,6 @@ public class NeuralNetGenome extends Genome {
         return n;
     }    
 }
-
 class ProtoNeuron {
     public int ID;
     public int learningMethod;

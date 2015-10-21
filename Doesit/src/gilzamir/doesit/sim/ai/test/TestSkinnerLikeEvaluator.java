@@ -10,6 +10,7 @@ import multinet.net.genetic.Genome;
 public class TestSkinnerLikeEvaluator {
     public static void main(String args[]) {
         NeuralNetGenetic genetic = new NeuralNetGenetic(100);
+       
         NeuralNetGenome.INPUTS = 4;
         NeuralNetGenome.OUTPUTS = 3;
         NeuralNetGenome.PROCESSING = 20;
@@ -17,7 +18,7 @@ public class TestSkinnerLikeEvaluator {
         SkinnerLikeEvaluator ev = new SkinnerLikeEvaluator();
         
         genetic.setupPopulation();
-        for (int i = 0; i < 30; i++) {
+        for (int i = 0; i < 100; i++) {
             System.out.println(genetic.evaluate(ev));
             genetic.next();
         }

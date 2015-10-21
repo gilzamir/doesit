@@ -7,7 +7,6 @@ import com.jme3.input.controls.KeyTrigger;
 import com.jme3.light.AmbientLight;
 import com.jme3.light.DirectionalLight;
 import com.jme3.light.Light;
-import com.jme3.light.PointLight;
 import com.jme3.light.SpotLight;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.FastMath;
@@ -15,6 +14,9 @@ import com.jme3.math.Vector3f;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.system.AppSettings;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.util.Arrays;
 import multinet.net.NeuralNet;
 
@@ -28,6 +30,7 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
     private boolean stimulate = false;
     private int noise = 1;
     private boolean automatic = false;
+    private OutputStreamWriter log1, log2;
     
     @Override
     public void simpleInitApp() {
@@ -98,6 +101,14 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
         inputManager.addListener(this, "ToogleRed", "ToogleGreen", "ToogleBlue",
                 "Stimulate", "ToogleNoise", "ToogleAutomatic");
         
+        try {
+            log1 = new OutputStreamWriter(new FileOutputStream("log1.txt"));
+            log2 = new OutputStreamWriter(new FileOutputStream("log2.txt"));
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
+        
+        
     }
 
     public void setNeuralNet(NeuralNet neuralNet) {
@@ -105,7 +116,7 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
     }
 
     private long automaticTime = 0;
-    private  float lightReward[] = {-1.0f, 1.0f, 1.0f};
+   // private  float lightReward[] = {-1.0f, 1.0f, 1.0f};
     private float reward;
     @Override
     public void update() {
@@ -113,7 +124,7 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
         
         if (automatic) {
             long curTime = System.currentTimeMillis();
-            if (curTime - automaticTime > 100) {
+            if (curTime - automaticTime > 10) {
                 stimulate = true;
                 automaticTime = curTime;
             }
@@ -123,30 +134,42 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
             reward = 0;
 
             if (getLightState(lightRed) == 1.0) {
-                reward -= 1.0f;
+                reward -= 33.0f;
             } else {
-                reward += 1.0f;
+                reward += 33.0f;
             }
 
             if (getLightState(lightGreen) == 1.0) {
-                reward += 1.0f;
+                reward += 33.0;
             } else {
-                reward -= 1.0f;
+                reward -= 33.0f;
             }
 
             if (getLightState(lightBlue) == 1.0) {
-                reward += 1.0f;
+                reward += 33.0f;
             } else {
-                reward -= 1.0f;
+                reward -= 33.0f;
             }
             
             int[] in = neuralNet.getInputs();
             neuralNet.setInput(in[0], getLightState(lightRed) * noise);
             neuralNet.setInput(in[1], getLightState(lightGreen) * noise);
             neuralNet.setInput(in[2], getLightState(lightBlue) * noise);
-            neuralNet.setInput(in[3], 100);
+            neuralNet.setInput(in[3], reward * noise);
             System.out.println("NOISE: " + noise);
             neuralNet.process();
+            
+            try {
+                if (noise == 1) {
+                    log1.write("" + (neuralNet.numberOfUpdates/(2.0f*neuralNet.getSize())) + "\n" );
+                } else {
+                    log2.write("" + (neuralNet.numberOfUpdates/(2.0f*neuralNet.getSize())) + "\n");
+                }
+            } catch(IOException e) {
+                e.printStackTrace();
+            }
+            
+            
             double out[] = neuralNet.getOutput();
             
             if (out[0] > 0.2) {
@@ -244,6 +267,19 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
             }
         }
     }
+
+    @Override
+    public void destroy() {
+        super.destroy(); //To change body of generated methods, choose Tools | Templates.
+        try {
+            log1.close();
+            log2.close();
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
+    }
+    
+    
     
     public static void main(String args[]) {
         startApp(null);
