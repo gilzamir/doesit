@@ -133,29 +133,36 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
         if (stimulate && neuralNet != null) {
             reward = 0;
 
-            if (getLightState(lightRed) == 1.0) {
-                reward -= 33.0f;
+            if (getLightState(lightRed) == 0.5) {
+                reward -= 0.33f;
             } else {
-                reward += 33.0f;
+                reward += 0.33f;
             }
 
-            if (getLightState(lightGreen) == 1.0) {
-                reward += 33.0;
+            if (getLightState(lightGreen) == 0.5) {
+                reward += 0.33f;
             } else {
-                reward -= 33.0f;
+                reward -= 0.33f;
             }
 
-            if (getLightState(lightBlue) == 1.0) {
-                reward += 33.0f;
+            if (getLightState(lightBlue) == 0.5) {
+                reward += 0.33f;
             } else {
-                reward -= 33.0f;
+                reward -= 0.33f;
             }
             
             int[] in = neuralNet.getInputs();
-            neuralNet.setInput(in[0], getLightState(lightRed) * noise);
-            neuralNet.setInput(in[1], getLightState(lightGreen) * noise);
-            neuralNet.setInput(in[2], getLightState(lightBlue) * noise);
-            neuralNet.setInput(in[3], reward * noise);
+            if (noise > 0) {
+                neuralNet.setInput(in[0], getLightState(lightRed));
+                neuralNet.setInput(in[1], getLightState(lightGreen));
+                neuralNet.setInput(in[2], getLightState(lightBlue));
+                neuralNet.setInput(in[3], reward);
+            } else {
+                neuralNet.setInput(in[1], getLightState(lightRed));
+                neuralNet.setInput(in[0], getLightState(lightGreen));
+                neuralNet.setInput(in[2], getLightState(lightBlue));   
+                neuralNet.setInput(in[3], reward);
+            }
             System.out.println("NOISE: " + noise);
             neuralNet.process();
             
@@ -171,22 +178,24 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
             
             
             double out[] = neuralNet.getOutput();
-            
-            if (out[0] > 0.2) {
+
+            float alfa = 0.5f;
+            float beta = -0.5f;
+            if (out[0] > alfa) {
                 lightOn(lightRed, ColorRGBA.Red, redNode, "redMesh1");
-            } else if (out[0] < -0.2) {
+            } else if (out[0] < beta) {
                 lightOff(lightRed, redNode, "redMesh1");
             }
             
-            if (out[1] > 0.2) {
+            if (out[1] > alfa) {
                 lightOn(lightGreen, ColorRGBA.Green, greenNode, "greenMesh1");
-            } else if (out[1] < -0.2) {
+            } else if (out[1] < beta) {
                 lightOff(lightGreen, greenNode, "greenMesh1");
             }
             
-            if (out[2] > 0.2) {
+            if (out[2] > alfa) {
                 lightOn(lightBlue, ColorRGBA.Blue, blueNode, "blueMesh1");
-            } else if (out[2] < -0.2) {
+            } else if (out[2] < beta) {
                 lightOff(lightBlue, blueNode, "blueMesh1");
             }
             
@@ -197,9 +206,9 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
 
     public float getLightState(Light light) {
         if (light.getColor().equals(ColorRGBA.Black)) {
-            return 0.0f;
+            return -0.5f;
         } else {
-            return 1.0f;
+            return 0.5f;
         }
     }
     
@@ -231,7 +240,7 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
     public void onAction(String name, boolean isPressed, float tpf) {
         if (name.equals("ToogleRed")) {
             if (isPressed) {
-                if (getLightState(lightRed) == 1.0) {
+                if (getLightState(lightRed) == 0.5) {
                     lightOff(lightRed, redNode, "redMesh1");
                 } else {
                     lightOn(lightRed, ColorRGBA.Red, redNode, "redMesh1");
@@ -239,7 +248,7 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
             }
         } else  if (name.equals("ToogleGreen")) {
             if (isPressed) {
-                if (getLightState(lightGreen) == 1.0) {
+                if (getLightState(lightGreen) == 0.5) {
                     lightOff(lightGreen, greenNode, "greenMesh1");
                 } else {
                     lightOn(lightGreen, ColorRGBA.Green, greenNode, "greenMesh1");
@@ -247,7 +256,7 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
             }
         } else  if (name.equals("ToogleBlue")) {
             if (isPressed) {
-                if (getLightState(lightBlue) == 1.0) {
+                if (getLightState(lightBlue) == 0.5) {
                     lightOff(lightBlue, blueNode, "blueMesh1");
                 } else {
                     lightOn(lightBlue, ColorRGBA.Blue, blueNode, "blueMesh1");

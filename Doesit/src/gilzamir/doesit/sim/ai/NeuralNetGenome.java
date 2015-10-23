@@ -29,10 +29,10 @@ public class NeuralNetGenome extends Genome {
         net.setPlasticityEnabled(true);
         Encoding global = getChromossome(0);
         
-        net.restInput = global.getAsFloat(0, -1f, 1f);
+        net.restInput = global.getAsFloat(0, -100f, 100f);
         net.weightGain = global.getAsFloat(1, -100, 100);
         net.outputGain = global.getAsFloat(2, 0, 1);
-        
+        net.setLearningRate(global.getAsFloat(3, 1.0f, 2.0f));
         Encoding body = getChromossome(1);
         Encoding amp = null;
         Encoding shift  = null;
@@ -49,7 +49,7 @@ public class NeuralNetGenome extends Genome {
             BitSet gene = body.getGene(i);
             int ID = Encoding.toInt(gene, 0, 8);
             
-            float value = 20.0f * (Encoding.toInt(gene, 8, 32)/(float)Encoding.MAX_INT24) - 10.0f;
+            float value = 2.0f * (Encoding.toInt(gene, 8, 32)/(float)Encoding.MAX_INT24) - 1.0f;
             if (ID <= 51) {
                 current = new ProtoNeuron();
                 current.ID = ID;
@@ -57,7 +57,7 @@ public class NeuralNetGenome extends Genome {
                 current.binary = gene;
                
                 if (amp != null && shift != null) {
-                    current.amp = amp.getAsFloat(i, 0.01f, 1.0f);
+                    current.amp = amp.getAsFloat(i, 0.0f, 1.0f);
                     current.shift = shift.getAsFloat(i, -1.0f, 1.0f);
                 }
                 current.t1 = current.t2 = null;
@@ -68,7 +68,7 @@ public class NeuralNetGenome extends Genome {
                     t.ID = ID;
                     t.value = value;
                     if (plasticity != null) {
-                        t.plasticity = plasticity.getAsFloat(i, 0.0f, 0.5f);
+                        t.plasticity = plasticity.getAsFloat(i, -1.0f, 1.0f);
                     }
                     if (current.t1 == null) {
                         current.t1 = t;
@@ -147,8 +147,8 @@ public class NeuralNetGenome extends Genome {
                 BitSet b2 = tj.binary;
                 int eb = countEquals(b1, b2, 32);
                 double w = 0.0f;
-                if ((eb / 4) % 3 != 0) {
-                    w = 30.0f * ((eb * (in + out)) / (32.0f)) - 15.0f;
+                if ((eb / 2) % 3 != 0) {
+                    w = 100.0f * ((eb * (in + out)) / (24.0f)) - 50.0f;
                 }
 
                 net.setPlasticity(ni.ID, nj.ID, (ti.plasticity + tj.plasticity) * 0.5f);
