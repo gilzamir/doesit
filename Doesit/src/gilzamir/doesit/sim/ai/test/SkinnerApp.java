@@ -117,7 +117,7 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
 
     private long automaticTime = 0;
    // private  float lightReward[] = {-1.0f, 1.0f, 1.0f};
-    private float reward;
+    private float energy = 20000;
     @Override
     public void update() {
         super.update(); //To change body of generated methods, choose Tools | Templates.
@@ -130,38 +130,24 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
             }
         }
         
-        if (stimulate && neuralNet != null) {
-            reward = 0;
-
-            if (getLightState(lightRed) == 0.5) {
-                reward -= 0.33f;
-            } else {
-                reward += 0.33f;
-            }
-
-            if (getLightState(lightGreen) == 0.5) {
-                reward += 0.33f;
-            } else {
-                reward -= 0.33f;
-            }
-
-            if (getLightState(lightBlue) == 0.5) {
-                reward += 0.33f;
-            } else {
-                reward -= 0.33f;
-            }
+        if (energy < 0) {
+            System.out.println("Game Over!!!!");
+        }
+        
+        if (energy > 0 && stimulate && neuralNet != null) {
             
+            float maxEnergy = 20500;
             int[] in = neuralNet.getInputs();
             if (noise > 0) {
                 neuralNet.setInput(in[0], getLightState(lightRed));
                 neuralNet.setInput(in[1], getLightState(lightGreen));
                 neuralNet.setInput(in[2], getLightState(lightBlue));
-                neuralNet.setInput(in[3], reward);
+                neuralNet.setInput(in[3], energy/maxEnergy);
             } else {
                 neuralNet.setInput(in[1], getLightState(lightRed));
                 neuralNet.setInput(in[0], getLightState(lightGreen));
                 neuralNet.setInput(in[2], getLightState(lightBlue));   
-                neuralNet.setInput(in[3], reward);
+                neuralNet.setInput(in[3], energy/maxEnergy);
             }
             System.out.println("NOISE: " + noise);
             neuralNet.process();
@@ -179,26 +165,40 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
             
             double out[] = neuralNet.getOutput();
 
-            float alfa = 0.5f;
-            float beta = -0.5f;
+            float alfa = 0.2f;
+            float beta = -0.2f;
             if (out[0] > alfa) {
                 lightOn(lightRed, ColorRGBA.Red, redNode, "redMesh1");
             } else if (out[0] < beta) {
                 lightOff(lightRed, redNode, "redMesh1");
             }
+            energy -= 2 * Math.abs(out[0]);
             
             if (out[1] > alfa) {
                 lightOn(lightGreen, ColorRGBA.Green, greenNode, "greenMesh1");
             } else if (out[1] < beta) {
                 lightOff(lightGreen, greenNode, "greenMesh1");
             }
+            energy -= 2 * Math.abs(out[1]);
             
             if (out[2] > alfa) {
                 lightOn(lightBlue, ColorRGBA.Blue, blueNode, "blueMesh1");
             } else if (out[2] < beta) {
                 lightOff(lightBlue, blueNode, "blueMesh1");
             }
+            energy -= 2 * Math.abs(out[2]);
             
+            
+            double prate  = neuralNet.numberOfUpdates/(float)neuralNet.getSize();
+            
+            energy -= prate + 10 * getLightState(lightRed) - 10 * getLightState(lightGreen) 
+                    - 10 * getLightState(lightBlue);
+            
+            if (energy > maxEnergy) {
+                energy = maxEnergy;
+            }
+            
+            System.out.println("Energy: " + energy);
             System.out.println(Arrays.toString(out));
             stimulate = false;
         }

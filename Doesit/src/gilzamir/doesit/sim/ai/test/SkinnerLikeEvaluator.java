@@ -2,7 +2,6 @@ package gilzamir.doesit.sim.ai.test;
 
 
 import multinet.net.NeuralNet;
-import multinet.net.Neuron;
 import multinet.net.genetic.Evaluator;
 import multinet.net.genetic.Genome;
 
@@ -10,7 +9,7 @@ public class SkinnerLikeEvaluator implements Evaluator {
     private final int NUM_OF_LIGHT = 3;
     public float lightState[];
     public float lightReward[];
-    public float energy = 100;
+    public float energy = 2000;
 
     public void evaluate(Genome gen) {
         float sum = 0.0f;
@@ -31,82 +30,55 @@ public class SkinnerLikeEvaluator implements Evaluator {
         float fitness = 0;
         gen.setFitness(0.0f);
         int n = 0;
-        float reward = 0;
         float noise = 1.0f;
 
         int step = 0;
         int maxStep = 1000;
-        float prate = 1.0f - (net.numberOfUpdates)/(float)net.getSize();
+        float prate = 0.0f;
+        final float maxEnergy = 20500;
         while (energy > 0 && step < maxStep) {
             n++;
             step++;
             for (int l = 0; l < lightState.length; l++) {
-                if (Math.random() < 0.05) {
+                if (Math.random() < 0.5) {
                     lightState[l] =  (-1) * lightState[l];
                 }
             }
             
-            reward = 0;
-            for (int i = 0; i < lightReward.length; i++) {
-                if (lightState[i] == 0.5) {
-                    reward += lightReward[i];
-                    energy += lightReward[i];
-                } else {
-                    reward -= lightReward[i];
-                    energy -= lightReward[i];
-                }
-            }
-            
-            
             net.setInput(input[0], lightState[0] * noise);
             net.setInput(input[1], lightState[1] * noise);
             net.setInput(input[2], lightState[2] * noise);
-            net.setInput(input[3], reward);
-            
-
-            
+            net.setInput(input[3], energy/maxEnergy);
+            net.lambda  = energy;
             net.process();
+            prate = 1.0f - (net.numberOfUpdates)/(float)net.getSize();
             double out[] = net.getOutput();
-            double alfa = 0.05;
-            double beta = -0.05;
+            double alfa = 0.2;
+            double beta = -0.2;
             for (int i = 0; i < out.length; i++) {
-                boolean isInRange = false;
+                
                 if (out[i] > alfa) {
-                    lightState[i] = 0.5f;
-                    
-                    isInRange = true;
+                    lightState[i] = 0.5f;    
                 } else if (out[i] <  beta){
                     lightState[i] = -0.5f;  
-                    isInRange = true;
-                } else {
-                    fitness -= 20;
                 }
 
                 if (lightState[i] == 0.5 && lightReward[i] > 0) {
                     fitness += 10;
-                    if (isInRange) {
-                        energy += 1.0f;
-                    } else {
-                        energy -= 1.0f;
-                    }
                 } else if (lightState[i] == -0.5 && lightReward[i] < 0) {
                     fitness += 10;
-                    if (isInRange) {
-                        energy += 1.0f;
-                    } else {
-                        energy -= 8.0f;
-                    }
-                } else {
-                    energy -= 10.0f;
                 }
+                
+                energy -= Math.abs(out[i])*2;
             }
         
-            energy -= 8 * prate;
+            energy -= 3.33f * prate + 10 * lightState[0] - 10 * lightState[1]
+                    - 10 * lightState[2];
+            if (energy > maxEnergy) {
+                energy = maxEnergy;
+            }
         }
 
-        //gen.setFitness((1.0f * fitness/n + 1.0f * prate)/2.0f);
-      //  gen.setFitness(fitness/n);
-    //    return (fitness/n + 2 * prate)/3.0f;
         return (fitness/n + prate) * 0.5f;
     }
     
@@ -124,6 +96,6 @@ public class SkinnerLikeEvaluator implements Evaluator {
         lightReward[1] = 0.33f; //it's light on reward
         lightReward[2] = 0.33f; //it's light on reward
         
-        energy = 100.0f; //max time to act 
+        energy = 20000.0f; //max time to act 
     }
 }
