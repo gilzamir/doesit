@@ -136,8 +136,9 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
         
         if (energy > 0 && stimulate && neuralNet != null) {
             
-            float maxEnergy = 20500;
+            float maxEnergy = 25000;
             int[] in = neuralNet.getInputs();
+            neuralNet.lambda = energy;
             if (noise > 0) {
                 neuralNet.setInput(in[0], getLightState(lightRed));
                 neuralNet.setInput(in[1], getLightState(lightGreen));
@@ -189,10 +190,10 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
             energy -= 2 * Math.abs(out[2]);
             
             
-            double prate  = neuralNet.numberOfUpdates/(float)neuralNet.getSize();
+            double prate  = neuralNet.numberOfUpdates/(float)(neuralNet.getSize()*neuralNet.getSize());
             
-            energy -= prate + 10 * getLightState(lightRed) - 10 * getLightState(lightGreen) 
-                    - 10 * getLightState(lightBlue);
+            energy += -3.33 * (1-prate) - 20 * getLightState(lightRed) + 10 * getLightState(lightGreen) 
+                    + 10 * getLightState(lightBlue);
             
             if (energy > maxEnergy) {
                 energy = maxEnergy;

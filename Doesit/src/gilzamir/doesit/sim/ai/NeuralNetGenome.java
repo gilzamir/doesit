@@ -17,7 +17,7 @@ public class NeuralNetGenome extends Genome {
     public static  int INPUTS = 3;
     public static  int OUTPUTS = 1;
     public static  int PROCESSING = 100;
-    public static int CHROMOSSOMES = 5;
+    public static int CHROMOSSOMES = 6;
     
     public NeuralNetGenome(int size) {
         super(size);
@@ -37,11 +37,12 @@ public class NeuralNetGenome extends Genome {
         Encoding amp = null;
         Encoding shift  = null;
         Encoding plasticity = null;
-        
+        Encoding method = null;
         if (size() >= CHROMOSSOMES) {
             amp = getChromossome(2);
             shift = getChromossome(3);
             plasticity = getChromossome(4);
+            method = getChromossome(5);
         }
         LinkedList<ProtoNeuron> neurons = new LinkedList<ProtoNeuron>();
         ProtoNeuron current = null;
@@ -56,9 +57,19 @@ public class NeuralNetGenome extends Genome {
                 current.value = value;
                 current.binary = gene;
                
-                if (amp != null && shift != null) {
-                    current.amp = amp.getAsFloat(i, 0.0f, 1.0f);
+                if (amp != null && shift != null && method != null) {
+                    current.amp = amp.getAsFloat(i, -1.0f, 1.0f);
                     current.shift = shift.getAsFloat(i, -1.0f, 1.0f);
+                    double m = method.getAsFloat(i, 0.0f, 1.0f);
+                    if (m < 0.25) {
+                        current.learningMethod = 0;
+                    } else if (m < 0.5) {
+                        current.learningMethod = 1;
+                    } else if (m < 0.75) {
+                        current.learningMethod = 2;
+                    } else {
+                        current.learningMethod = 3;
+                    }
                 }
                 current.t1 = current.t2 = null;
             } else {

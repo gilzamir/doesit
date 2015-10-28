@@ -35,7 +35,7 @@ public class SkinnerLikeEvaluator implements Evaluator {
         int step = 0;
         int maxStep = 1000;
         float prate = 0.0f;
-        final float maxEnergy = 20500;
+        final float maxEnergy = 25000;
         while (energy > 0 && step < maxStep) {
             n++;
             step++;
@@ -51,7 +51,7 @@ public class SkinnerLikeEvaluator implements Evaluator {
             net.setInput(input[3], energy/maxEnergy);
             net.lambda  = energy;
             net.process();
-            prate = 1.0f - (net.numberOfUpdates)/(float)net.getSize();
+            prate = 1.0f - ((float)net.numberOfUpdates)/(float)(net.getSize()*net.getSize());
             double out[] = net.getOutput();
             double alfa = 0.2;
             double beta = -0.2;
@@ -72,8 +72,8 @@ public class SkinnerLikeEvaluator implements Evaluator {
                 energy -= Math.abs(out[i])*2;
             }
         
-            energy -= 3.33f * prate + 10 * lightState[0] - 10 * lightState[1]
-                    - 10 * lightState[2];
+            energy += -3.33f * (1.0-prate) - 20 * lightState[0] + 10 * lightState[1]
+                    + 10 * lightState[2];
             if (energy > maxEnergy) {
                 energy = maxEnergy;
             }
