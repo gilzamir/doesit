@@ -28,9 +28,11 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
     private NeuralNet neuralNet;
     private SpotLight lightRed, lightGreen, lightBlue;
     private boolean stimulate = false;
-    private int noise = 1;
+    private float inputScale = 1;
+    private float inputShift = 0;
     private boolean automatic = false;
     private OutputStreamWriter log1, log2;
+    private boolean randomic = false;
     
     @Override
     public void simpleInitApp() {
@@ -97,9 +99,10 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
         inputManager.addMapping("Stimulate", new KeyTrigger(KeyInput.KEY_S));
         inputManager.addMapping("ToogleNoise", new KeyTrigger(KeyInput.KEY_T));
         inputManager.addMapping("ToogleAutomatic", new KeyTrigger(KeyInput.KEY_A));
+        inputManager.addMapping("Randomic", new KeyTrigger(KeyInput.KEY_D));
         
         inputManager.addListener(this, "ToogleRed", "ToogleGreen", "ToogleBlue",
-                "Stimulate", "ToogleNoise", "ToogleAutomatic");
+                "Stimulate", "ToogleNoise", "ToogleAutomatic", "Randomic");
         
         try {
             log1 = new OutputStreamWriter(new FileOutputStream("log1.txt"));
@@ -132,32 +135,61 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
         
         if (energy < 0) {
             System.out.println("Game Over!!!!");
+            System.exit(0);
         }
         
         if (energy > 0 && stimulate && neuralNet != null) {
             
+            if (randomic) {
+                
+                double prb = 0.1;
+                if (Math.random() < prb) {
+                    lightOn(lightRed, ColorRGBA.Red, redNode, "redMesh1");
+                } else {
+                    lightOff(lightRed, redNode, "redMesh1");
+                }
+                
+                if (Math.random() < prb) {
+                    lightOn(lightGreen, ColorRGBA.Green, greenNode, "greenMesh1");
+                } else {
+                    lightOff(lightGreen, greenNode, "greenMesh1");
+                }
+                
+                if (Math.random() < prb) {
+                    lightOn(lightBlue, ColorRGBA.Blue, blueNode, "blueMesh1");
+                } else {
+                    lightOff(lightBlue, blueNode, "blueMesh1");
+                }
+            }
+            
+            
+            inputShift = (float)Math.random() * 0.4f - 0.2f;
+            if (Math.abs(inputShift) > 0.1f) {
+                inputShift = 0;
+            }
+            
+            int outmap[] = {0,1,2};
+            
             float maxEnergy = 25000;
             int[] in = neuralNet.getInputs();
             neuralNet.lambda = energy;
-            if (noise > 0) {
-                neuralNet.setInput(in[0], getLightState(lightRed));
-                neuralNet.setInput(in[1], getLightState(lightGreen));
-                neuralNet.setInput(in[2], getLightState(lightBlue));
-                neuralNet.setInput(in[3], energy/maxEnergy);
-            } else {
-                neuralNet.setInput(in[1], getLightState(lightRed));
-                neuralNet.setInput(in[0], getLightState(lightGreen));
-                neuralNet.setInput(in[2], getLightState(lightBlue));   
-                neuralNet.setInput(in[3], energy/maxEnergy);
+            neuralNet.setInput(in[0], getLightState(lightRed)  + inputShift);
+            neuralNet.setInput(in[1], getLightState(lightGreen)  + inputShift);
+            neuralNet.setInput(in[2], getLightState(lightBlue)  + inputShift);
+            neuralNet.setInput(in[3], (energy/maxEnergy));
+            
+            if (inputScale < 0) {
+                outmap = new int[]{1,0,2};
             }
-            System.out.println("NOISE: " + noise);
+            
+            System.out.println("INPUTSCALE: " + inputScale);
             neuralNet.process();
             
             try {
-                if (noise == 1) {
-                    log1.write("" + (neuralNet.numberOfUpdates/(2.0f*neuralNet.getSize())) + "\n" );
+                if (inputScale == 1) {
+                    log1.write("" + (neuralNet.numberOfUpdates/(neuralNet.getSize()*neuralNet.getSize())) + "\n" );
                 } else {
-                    log2.write("" + (neuralNet.numberOfUpdates/(2.0f*neuralNet.getSize())) + "\n");
+                    log2.write("" + (neuralNet.numberOfUpdates/(neuralNet.getSize()*neuralNet.getSize())) + "\n");
                 }
             } catch(IOException e) {
                 e.printStackTrace();
@@ -168,31 +200,30 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
 
             float alfa = 0.2f;
             float beta = -0.2f;
-            if (out[0] > alfa) {
+            if (out[outmap[0]] > alfa) {
                 lightOn(lightRed, ColorRGBA.Red, redNode, "redMesh1");
-            } else if (out[0] < beta) {
+            } else if (out[outmap[0]] < beta) {
                 lightOff(lightRed, redNode, "redMesh1");
             }
-            energy -= 2 * Math.abs(out[0]);
+            energy += -10 * Math.abs(out[outmap[0]]);
             
-            if (out[1] > alfa) {
+            if (out[outmap[1]] > alfa) {
                 lightOn(lightGreen, ColorRGBA.Green, greenNode, "greenMesh1");
-            } else if (out[1] < beta) {
+            } else if (out[outmap[1]] < beta) {
                 lightOff(lightGreen, greenNode, "greenMesh1");
             }
-            energy -= 2 * Math.abs(out[1]);
+            energy += -10 * Math.abs(out[outmap[1]]);
             
-            if (out[2] > alfa) {
+            if (out[outmap[2]] > alfa) {
                 lightOn(lightBlue, ColorRGBA.Blue, blueNode, "blueMesh1");
-            } else if (out[2] < beta) {
+            } else if (out[outmap[2]] < beta) {
                 lightOff(lightBlue, blueNode, "blueMesh1");
             }
-            energy -= 2 * Math.abs(out[2]);
-            
+            energy += -10 * Math.abs(out[outmap[2]]);
             
             double prate  = neuralNet.numberOfUpdates/(float)(neuralNet.getSize()*neuralNet.getSize());
             
-            energy += -3.33 * (1-prate) - 20 * getLightState(lightRed) + 10 * getLightState(lightGreen) 
+            energy += -1 * (1-prate) - 10 * getLightState(lightRed) + 10 * getLightState(lightGreen) 
                     + 10 * getLightState(lightBlue);
             
             if (energy > maxEnergy) {
@@ -269,11 +300,20 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
             }
         } else if (name.equals("ToogleNoise")) {
             if (isPressed) {
-                noise = -noise;
+                //inputScale = inputScale * -1;
+                if (inputScale>0) {
+                    inputScale  = -1;
+                } else {
+                    inputScale = 1;
+                }
             }
         } else if (name.equals("ToogleAutomatic")) {
             if (isPressed) {
                 automatic = true;
+            }
+        } else if (name.equals("Randomic")) {
+            if (isPressed) {
+                randomic = !randomic;
             }
         }
     }

@@ -13,7 +13,7 @@ public class SkinnerLikeEvaluator implements Evaluator {
 
     public void evaluate(Genome gen) {
         float sum = 0.0f;
-        int counter = 5;
+        int counter = 3;
         for (int i = 0; i < counter; i++) {
             sum += oneevaluate(gen);
         }
@@ -30,12 +30,13 @@ public class SkinnerLikeEvaluator implements Evaluator {
         float fitness = 0;
         gen.setFitness(0.0f);
         int n = 0;
-        float noise = 1.0f;
+        float inputScale = 1.0f;
 
         int step = 0;
         int maxStep = 1000;
         float prate = 0.0f;
         final float maxEnergy = 25000;
+        float backenergy = energy;
         while (energy > 0 && step < maxStep) {
             n++;
             step++;
@@ -44,10 +45,14 @@ public class SkinnerLikeEvaluator implements Evaluator {
                     lightState[l] =  (-1) * lightState[l];
                 }
             }
+            float inputShift = (float)Math.random() * 0.4f - 0.2f;
+            if (Math.abs(inputShift) > 0.1f) {
+                inputShift = 0;
+            }
             
-            net.setInput(input[0], lightState[0] * noise);
-            net.setInput(input[1], lightState[1] * noise);
-            net.setInput(input[2], lightState[2] * noise);
+            net.setInput(input[0], lightState[0] * inputScale + inputShift);
+            net.setInput(input[1], lightState[1] * inputScale + inputShift);
+            net.setInput(input[2], lightState[2] * inputScale + inputShift);
             net.setInput(input[3], energy/maxEnergy);
             net.lambda  = energy;
             net.process();
@@ -69,14 +74,18 @@ public class SkinnerLikeEvaluator implements Evaluator {
                     fitness += 10;
                 }
                 
-                energy -= Math.abs(out[i])*2;
+                energy += -Math.abs(out[i])*10;
             }
         
-            energy += -3.33f * (1.0-prate) - 20 * lightState[0] + 10 * lightState[1]
+            energy += -1.0f * (1.0-prate) - 10 * lightState[0] + 10 * lightState[1]
                     + 10 * lightState[2];
             if (energy > maxEnergy) {
                 energy = maxEnergy;
             }
+            
+            float delta = energy - backenergy;
+            backenergy = energy;
+            fitness += delta * 2;
         }
 
         return (fitness/n + prate) * 0.5f;

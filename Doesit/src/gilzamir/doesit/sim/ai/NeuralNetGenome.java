@@ -58,17 +58,17 @@ public class NeuralNetGenome extends Genome {
                 current.binary = gene;
                
                 if (amp != null && shift != null && method != null) {
-                    current.amp = amp.getAsFloat(i, -1.0f, 1.0f);
+                    current.amp = amp.getAsFloat(i, 0.0f, 1.0f);
                     current.shift = shift.getAsFloat(i, -1.0f, 1.0f);
                     double m = method.getAsFloat(i, 0.0f, 1.0f);
-                    if (m < 0.25) {
-                        current.learningMethod = 0;
-                    } else if (m < 0.5) {
-                        current.learningMethod = 1;
-                    } else if (m < 0.75) {
-                        current.learningMethod = 2;
-                    } else {
+                    if (m <= 0.25) {
                         current.learningMethod = 3;
+                    } else if (m <= 0.5) {
+                        current.learningMethod = 2;
+                    } else if (m <= 0.75) {
+                        current.learningMethod = 1;
+                    } else {
+                        current.learningMethod = 0;
                     }
                 }
                 current.t1 = current.t2 = null;

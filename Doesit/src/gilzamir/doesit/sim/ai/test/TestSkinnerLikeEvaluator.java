@@ -10,12 +10,12 @@ import multinet.net.genetic.Genome;
 public class TestSkinnerLikeEvaluator {
     public static void main(String args[]) {
         NeuralNetGenetic genetic = new NeuralNetGenetic(100);
-        genetic.setCrossoverProbability(0.95f);
-        genetic.setMutationProbability(0.005f);
+        genetic.setCrossoverProbability(0.9f);
+        genetic.setMutationProbability(0.008f);
        
         NeuralNetGenome.INPUTS = 4;
         NeuralNetGenome.OUTPUTS = 3;
-        NeuralNetGenome.PROCESSING = 12;
+        NeuralNetGenome.PROCESSING = 20;
         
         SkinnerLikeEvaluator ev = new SkinnerLikeEvaluator();
         
@@ -25,8 +25,18 @@ public class TestSkinnerLikeEvaluator {
             genetic.next();
         }
         
-        Genome ge = genetic.getOrganism()[0];
-        NeuralNet net =  (NeuralNet) ge.decode();
+        NeuralNet net = null;
+        int n = 0;
+        while (net == null &&  n < genetic.getOrganism().length) {
+            Genome ge = genetic.getOrganism()[0];
+            net =  (NeuralNet) ge.decode();
+            n++;
+        }
+        if (net == null) {
+            System.out.println("No viable organism!!!");
+            System.exit(0);
+        }
+        
         System.out.println(net.toString());
         net.setListener(new NeuralNetListener() {
             public void handleUpdateWeight(NeuralNetEvent evt) {
