@@ -27,12 +27,10 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
     private Node model;
     private NeuralNet neuralNet;
     private SpotLight lightRed, lightGreen, lightBlue;
-    private boolean stimulate = false;
-    private float inputScale = 1;
-    private float inputShift = 0;
-    private boolean automatic = false;
     private OutputStreamWriter log1, log2;
-    private boolean randomic = false;
+    private float sumIntensity = 0.0f;
+    private SkinnerLikeEvaluator skinnerBoxImpl;
+    private DirectionalLight light1, light2;
     
     @Override
     public void simpleInitApp() {
@@ -68,15 +66,13 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
         lightBlue.setSpotOuterAngle(180f * FastMath.DEG_TO_RAD);
         
         
-        DirectionalLight light1 = new DirectionalLight();
+        light1 = new DirectionalLight();
         light1.setDirection( (new Vector3f(1.0f, 1.0f, 1.0f)).normalize());
-        light1.setColor(ColorRGBA.White);
+        light1.setColor(new ColorRGBA(sumIntensity, sumIntensity, sumIntensity, 1.0f));
         
-        DirectionalLight light2 = new DirectionalLight();
+        light2 = new DirectionalLight();
         light2.setDirection( (new Vector3f(-1.0f, -1.0f, -1.0f)).normalize());
-        light2.setColor(ColorRGBA.White);
-        
-        
+        light2.setColor(new ColorRGBA(sumIntensity, sumIntensity, sumIntensity, 1.0f));
         
         AmbientLight amb = new AmbientLight();
         amb.setColor(ColorRGBA.LightGray);
@@ -90,19 +86,15 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
         
         flyCam.setEnabled(false);
         cam.setLocation(new Vector3f(-15.320519f, 12.324081f, 14.880732f));
-        cam.lookAtDirection(new Vector3f(0.67468536f, -0.37986183f, -0.6328541f), Vector3f.UNIT_Y);
+        cam.lookAtDirection(new Vector3f(0.67468536f, -0.37986183f, -0.6328541f), Vector3f.UNIT_Y);    
     
-    
-        inputManager.addMapping("ToogleRed", new KeyTrigger(KeyInput.KEY_R));
-        inputManager.addMapping("ToogleGreen", new KeyTrigger(KeyInput.KEY_G));        
-        inputManager.addMapping("ToogleBlue", new KeyTrigger(KeyInput.KEY_B));        
-        inputManager.addMapping("Stimulate", new KeyTrigger(KeyInput.KEY_S));
-        inputManager.addMapping("ToogleNoise", new KeyTrigger(KeyInput.KEY_T));
-        inputManager.addMapping("ToogleAutomatic", new KeyTrigger(KeyInput.KEY_A));
-        inputManager.addMapping("Randomic", new KeyTrigger(KeyInput.KEY_D));
+
+        inputManager.addMapping("ToogleNoise", new KeyTrigger(KeyInput.KEY_N));
+        inputManager.addMapping("ShowOutput", new KeyTrigger(KeyInput.KEY_O));
+        inputManager.addMapping("ShowEnergy", new KeyTrigger(KeyInput.KEY_E));
+        inputManager.addMapping("ShowDopamine", new KeyTrigger(KeyInput.KEY_D));
         
-        inputManager.addListener(this, "ToogleRed", "ToogleGreen", "ToogleBlue",
-                "Stimulate", "ToogleNoise", "ToogleAutomatic", "Randomic");
+        inputManager.addListener(this, "ToogleNoise", "ShowOutput", "ShowEnergy", "ShowDopamine");
         
         try {
             log1 = new OutputStreamWriter(new FileOutputStream("log1.txt"));
@@ -117,122 +109,55 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
     public void setNeuralNet(NeuralNet neuralNet) {
         this.neuralNet = neuralNet;
     }
+    
+    public void setSkinnerBoxImpl(SkinnerLikeEvaluator ev) {
+        this.skinnerBoxImpl = ev;
+    }
 
-    private long automaticTime = 0;
-   // private  float lightReward[] = {-1.0f, 1.0f, 1.0f};
-    private float energy = 20000;
+    
+    private long delay = 300;
+    public void setDelay(long delay) {
+        this.delay = delay;
+    }
+
+    public long getDelay() {
+        return delay;
+    }
+
+    
+    private long lastTime = -1;
+    private ColorRGBA sumColor = new ColorRGBA();
+    
     @Override
     public void update() {
         super.update(); //To change body of generated methods, choose Tools | Templates.
         
-        if (automatic) {
-            long curTime = System.currentTimeMillis();
-            if (curTime - automaticTime > 10) {
-                stimulate = true;
-                automaticTime = curTime;
-            }
-        }
-        
-        if (energy < 0) {
-            System.out.println("Game Over!!!!");
-            System.exit(0);
-        }
-        
-        if (energy > 0 && stimulate && neuralNet != null) {
-            
-            if (randomic) {
-                
-                double prb = 0.1;
-                if (Math.random() < prb) {
-                    lightOn(lightRed, ColorRGBA.Red, redNode, "redMesh1");
-                } else {
-                    lightOff(lightRed, redNode, "redMesh1");
+        if (skinnerBoxImpl != null) {
+            if (lastTime  < 0) {
+                if (skinnerBoxImpl != null) {
+                    skinnerBoxImpl.reset();
                 }
-                
-                if (Math.random() < prb) {
-                    lightOn(lightGreen, ColorRGBA.Green, greenNode, "greenMesh1");
-                } else {
-                    lightOff(lightGreen, greenNode, "greenMesh1");
-                }
-                
-                if (Math.random() < prb) {
-                    lightOn(lightBlue, ColorRGBA.Blue, blueNode, "blueMesh1");
-                } else {
-                    lightOff(lightBlue, blueNode, "blueMesh1");
-                }
+                lastTime = System.currentTimeMillis();
+                neuralNet.randomizeMatrix(neuralNet.getWeight(), -50, 50);
             }
-            
-            
-            inputShift = (float)Math.random() * 0.4f - 0.2f;
-            if (Math.abs(inputShift) > 0.1f) {
-                inputShift = 0;
+            long currentTime = System.currentTimeMillis();
+            if (currentTime - lastTime > delay) {
+                lastTime = currentTime;
+                skinnerBoxImpl.step(this.neuralNet);
+                System.out.println("DemageInput: " + skinnerBoxImpl.demageInput);
+                System.out.println("ShowOutput: " + skinnerBoxImpl.showOutput);
+                System.out.println("ShowEnergy: " + skinnerBoxImpl.showEnergy);
             }
+            setRedLight(this.skinnerBoxImpl.lightState[0]);
+            setBlueLight(this.skinnerBoxImpl.lightState[1]);
+            setBlueLight(this.skinnerBoxImpl.lightState[2]);
             
-            int outmap[] = {0,1,2};
+            sumIntensity = skinnerBoxImpl.getSunIntensity();
             
-            float maxEnergy = 25000;
-            int[] in = neuralNet.getInputs();
-            neuralNet.lambda = energy;
-            neuralNet.setInput(in[0], getLightState(lightRed)  + inputShift);
-            neuralNet.setInput(in[1], getLightState(lightGreen)  + inputShift);
-            neuralNet.setInput(in[2], getLightState(lightBlue)  + inputShift);
-            neuralNet.setInput(in[3], (energy/maxEnergy));
+            sumColor.set(sumIntensity, sumIntensity, sumIntensity, 1.0f);
             
-            if (inputScale < 0) {
-                outmap = new int[]{1,0,2};
-            }
-            
-            System.out.println("INPUTSCALE: " + inputScale);
-            neuralNet.process();
-            
-            try {
-                if (inputScale == 1) {
-                    log1.write("" + (neuralNet.numberOfUpdates/(neuralNet.getSize()*neuralNet.getSize())) + "\n" );
-                } else {
-                    log2.write("" + (neuralNet.numberOfUpdates/(neuralNet.getSize()*neuralNet.getSize())) + "\n");
-                }
-            } catch(IOException e) {
-                e.printStackTrace();
-            }
-            
-            
-            double out[] = neuralNet.getOutput();
-
-            float alfa = 0.2f;
-            float beta = -0.2f;
-            if (out[outmap[0]] > alfa) {
-                lightOn(lightRed, ColorRGBA.Red, redNode, "redMesh1");
-            } else if (out[outmap[0]] < beta) {
-                lightOff(lightRed, redNode, "redMesh1");
-            }
-            energy += -10 * Math.abs(out[outmap[0]]);
-            
-            if (out[outmap[1]] > alfa) {
-                lightOn(lightGreen, ColorRGBA.Green, greenNode, "greenMesh1");
-            } else if (out[outmap[1]] < beta) {
-                lightOff(lightGreen, greenNode, "greenMesh1");
-            }
-            energy += -10 * Math.abs(out[outmap[1]]);
-            
-            if (out[outmap[2]] > alfa) {
-                lightOn(lightBlue, ColorRGBA.Blue, blueNode, "blueMesh1");
-            } else if (out[outmap[2]] < beta) {
-                lightOff(lightBlue, blueNode, "blueMesh1");
-            }
-            energy += -10 * Math.abs(out[outmap[2]]);
-            
-            double prate  = neuralNet.numberOfUpdates/(float)(neuralNet.getSize()*neuralNet.getSize());
-            
-            energy += -1 * (1-prate) - 10 * getLightState(lightRed) + 10 * getLightState(lightGreen) 
-                    + 10 * getLightState(lightBlue);
-            
-            if (energy > maxEnergy) {
-                energy = maxEnergy;
-            }
-            
-            System.out.println("Energy: " + energy);
-            System.out.println(Arrays.toString(out));
-            stimulate = false;
+            light1.setColor(sumColor);
+            light2.setColor(sumColor);
         }
     }
 
@@ -256,8 +181,43 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
         geo.getMaterial().setColor("Diffuse", ColorRGBA.Black);
     }
     
-    public static void startApp(NeuralNet net) {
+    
+    public void setRedLight(float v) {
+       ColorRGBA c = new ColorRGBA(v, 0.0f,0.0f, 1.0f);
+       lightRed.setColor(c);
+       Geometry geo = (Geometry) redNode.getChild("redMesh1");
+       geo.getMaterial().setColor("Diffuse", c);
+    }
+    
+    public void setBlueLight(float v) {
+       ColorRGBA c = new ColorRGBA(0.0f, 0.0f, v, 1.0f);
+       lightBlue.setColor(c);
+       Geometry geo = (Geometry) blueNode.getChild("blueMesh1");
+       geo.getMaterial().setColor("Diffuse", c);    
+    }
+    
+    public void setGreenLight(float v) {
+       ColorRGBA c = new ColorRGBA(0.0f, v, 0.0f, 0.0f);
+       lightGreen.setColor(c);
+       Geometry geo = (Geometry) greenNode.getChild("greenMesh1");
+       geo.getMaterial().setColor("Diffuse", c);
+    }
+
+    public float getBlueLightInt() {
+        return lightBlue.getColor().b;
+    }
+    
+    public float getRedLightInt() {
+        return lightRed.getColor().r;
+    }
+    
+    public float getGreenLightInt() {
+        return lightGreen.getColor().g;
+    }
+    
+    public static void startApp(SkinnerLikeEvaluator ev, NeuralNet net) {
        SkinnerApp app = new SkinnerApp();
+       app.setSkinnerBoxImpl(ev);
        AppSettings settings = new AppSettings(true);
        settings.setTitle("SkinnerBox");
        app.setSettings(settings);
@@ -270,50 +230,29 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
     }
 
     public void onAction(String name, boolean isPressed, float tpf) {
-        if (name.equals("ToogleRed")) {
+        if (name.equals("ToogleNoise")) {
             if (isPressed) {
-                if (getLightState(lightRed) == 0.5) {
-                    lightOff(lightRed, redNode, "redMesh1");
-                } else {
-                    lightOn(lightRed, ColorRGBA.Red, redNode, "redMesh1");
+                if (skinnerBoxImpl != null) {
+                    skinnerBoxImpl.demageInput = !skinnerBoxImpl.demageInput;
                 }
             }
-        } else  if (name.equals("ToogleGreen")) {
+        } else if (name.equals("ShowOutput")) {
             if (isPressed) {
-                if (getLightState(lightGreen) == 0.5) {
-                    lightOff(lightGreen, greenNode, "greenMesh1");
-                } else {
-                    lightOn(lightGreen, ColorRGBA.Green, greenNode, "greenMesh1");
-                }                
-            }
-        } else  if (name.equals("ToogleBlue")) {
-            if (isPressed) {
-                if (getLightState(lightBlue) == 0.5) {
-                    lightOff(lightBlue, blueNode, "blueMesh1");
-                } else {
-                    lightOn(lightBlue, ColorRGBA.Blue, blueNode, "blueMesh1");
-                }                
-            }
-        } else  if (name.equals("Stimulate")) {
-            if (isPressed) {
-                stimulate = true;
-            }
-        } else if (name.equals("ToogleNoise")) {
-            if (isPressed) {
-                //inputScale = inputScale * -1;
-                if (inputScale>0) {
-                    inputScale  = -1;
-                } else {
-                    inputScale = 1;
+                if (skinnerBoxImpl != null) {
+                    skinnerBoxImpl.showOutput = !skinnerBoxImpl.showOutput;
                 }
             }
-        } else if (name.equals("ToogleAutomatic")) {
+        } else if (name.equals("ShowEnergy")) {
             if (isPressed) {
-                automatic = true;
+                if (skinnerBoxImpl != null) {
+                    skinnerBoxImpl.showEnergy = !skinnerBoxImpl.showEnergy;
+                }
             }
-        } else if (name.equals("Randomic")) {
+        } else if (name.equals("ShowDopamine")) {
             if (isPressed) {
-                randomic = !randomic;
+                if (skinnerBoxImpl != null) {
+                    skinnerBoxImpl.showDopamine = !skinnerBoxImpl.showDopamine;
+                }
             }
         }
     }
@@ -332,6 +271,6 @@ public class SkinnerApp extends SimpleApplication implements ActionListener {
     
     
     public static void main(String args[]) {
-        startApp(null);
+        startApp(null, null);
     }
 }

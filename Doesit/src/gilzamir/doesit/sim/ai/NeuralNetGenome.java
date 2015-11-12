@@ -17,7 +17,7 @@ public class NeuralNetGenome extends Genome {
     public static  int INPUTS = 3;
     public static  int OUTPUTS = 1;
     public static  int PROCESSING = 100;
-    public static int CHROMOSSOMES = 6;
+    public static int CHROMOSSOMES = 4;
     
     public NeuralNetGenome(int size) {
         super(size);
@@ -29,20 +29,16 @@ public class NeuralNetGenome extends Genome {
         net.setPlasticityEnabled(true);
         Encoding global = getChromossome(0);
         
-        net.restInput = global.getAsFloat(0, -100f, 100f);
+        net.inputRest = global.getAsFloat(0, -100f, 100f);
         net.weightGain = global.getAsFloat(1, -100, 100);
-        net.outputGain = global.getAsFloat(2, 0, 1);
-        net.setLearningRate(global.getAsFloat(3, 1.0f, 2.0f));
+        net.outputGain = global.getAsFloat(2, 0.0f, 1.0f);
+        net.setLearningRate(global.getAsFloat(2, 0.002f, 1.0f));
         Encoding body = getChromossome(1);
         Encoding amp = null;
         Encoding shift  = null;
-        Encoding plasticity = null;
-        Encoding method = null;
         if (size() >= CHROMOSSOMES) {
             amp = getChromossome(2);
             shift = getChromossome(3);
-            plasticity = getChromossome(4);
-            method = getChromossome(5);
         }
         LinkedList<ProtoNeuron> neurons = new LinkedList<ProtoNeuron>();
         ProtoNeuron current = null;
@@ -57,19 +53,9 @@ public class NeuralNetGenome extends Genome {
                 current.value = value;
                 current.binary = gene;
                
-                if (amp != null && shift != null && method != null) {
+                if (amp != null && shift != null) {
                     current.amp = amp.getAsFloat(i, 0.0f, 1.0f);
-                    current.shift = shift.getAsFloat(i, -1.0f, 1.0f);
-                    double m = method.getAsFloat(i, 0.0f, 1.0f);
-                    if (m <= 0.25) {
-                        current.learningMethod = 3;
-                    } else if (m <= 0.5) {
-                        current.learningMethod = 2;
-                    } else if (m <= 0.75) {
-                        current.learningMethod = 1;
-                    } else {
-                        current.learningMethod = 0;
-                    }
+                    current.shift = shift.getAsFloat(i, -1.0f, 1.0f); 
                 }
                 current.t1 = current.t2 = null;
             } else {
@@ -78,8 +64,12 @@ public class NeuralNetGenome extends Genome {
                     t.binary = gene;
                     t.ID = ID;
                     t.value = value;
-                    if (plasticity != null) {
-                        t.plasticity = plasticity.getAsFloat(i, -1.0f, 1.0f);
+
+                    if (amp != null) { 
+                        t.amp = amp.getAsFloat(i, 0.0f, 1.0f);
+                    }
+                    if (shift != null) {
+                        t.shift = shift.getAsFloat(i, -1.0f, 1.0f);
                     }
                     if (current.t1 == null) {
                         current.t1 = t;
@@ -158,12 +148,15 @@ public class NeuralNetGenome extends Genome {
                 BitSet b2 = tj.binary;
                 int eb = countEquals(b1, b2, 32);
                 double w = 0.0f;
-                if ((eb / 2) % 3 != 0) {
-                    w = 100.0f * ((eb * (in + out)) / (24.0f)) - 50.0f;
-                }
+                //if ((eb / 2) % 3 != 0) {
+                   // w = 100.0f * ((eb * (in + out)) / (24.0f)) - 50.0f;
+                    w = ((eb * (in + out)) / (24.0f));
+                //}
 
-                net.setPlasticity(ni.ID, nj.ID, (ti.plasticity + tj.plasticity) * 0.5f);
-                net.setWeight(ni.ID, nj.ID, w);                
+                net.setPlasticity(ni.ID, nj.ID, w);
+//                net.setAmp(ni.ID, nj.ID, (ti.amp+tj.amp) * 0.5f);
+//                net.setShift(ni.ID, nj.ID, (ti.shift + tj.shift) * 0.5f);
+//                net.setWeight(ni.ID, nj.ID, w);                
             }
         }
         
@@ -191,7 +184,7 @@ class ProtoNeuron {
 
 class Terminal {
     public int ID;
-    public float value, plasticity;
+    public float value, plasticity, amp, shift;
     public BitSet binary;
 }
 
@@ -201,7 +194,7 @@ class FixedInputOutputGenerator implements EncodingGenerator {
     int outputs;
 
     public Encoding generate(Encoding enc) {
-        int i = 0;
+        int i;
         int n = inputs * 3;
         for (i = 0; i < n; i += 3) {
             boolean neuronGene[] = new boolean[32];
