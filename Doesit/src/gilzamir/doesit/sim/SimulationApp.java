@@ -40,7 +40,6 @@ public class SimulationApp extends SimpleApplication  {
     @Override
     public void simpleInitApp() {
        // flyCam.setMoveSpeed(60);
-        assetManager.registerLoader(com.jme3.material.plugins.NeoTextureMaterialLoader.class,"tgr");
         guiFont = assetManager.loadFont("Interface/Fonts/Default.fnt");
         hoverEnergyText = new BitmapText(guiFont);
         hoverEnergyText.setSize(guiFont.getCharSet().getRenderedSize());
