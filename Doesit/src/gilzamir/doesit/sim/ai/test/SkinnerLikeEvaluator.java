@@ -2,6 +2,7 @@ package gilzamir.doesit.sim.ai.test;
 
 import java.util.Arrays;
 import multinet.net.NeuralNet;
+
 import multinet.net.genetic.Evaluator;
 import multinet.net.genetic.Genome;
 
@@ -85,7 +86,7 @@ public class SkinnerLikeEvaluator implements Evaluator {
         float inputShift = (float) Math.random() * 0.4f - 0.2f;
         if (Math.abs(inputShift) > 0.2f) {
             inputShift = 0;
-        }
+        }   
 
         if (!demageInput) {
             net.setInput(input[0], lightState[0] * inputScale + inputShift);

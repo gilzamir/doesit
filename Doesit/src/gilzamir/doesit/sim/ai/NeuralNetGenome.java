@@ -117,8 +117,8 @@ public class NeuralNetGenome extends Genome {
             ne.setLearningRate(proto.learningRate);
             ne.setLearningMethod(proto.learningMethod);
             ne.setOutputThreshold(proto.amp);
-            ne.setAmp(proto.amp);
-            ne.setShift(proto.shift);
+            ne.setDouble("amp", proto.amp);
+            ne.setDouble("shift", proto.shift);
             
             if (proto.shift >= 0.0) {
                 ne.setThresholdRule(ThresholdType.MAX);
