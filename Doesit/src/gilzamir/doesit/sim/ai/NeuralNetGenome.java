@@ -1,11 +1,13 @@
 package gilzamir.doesit.sim.ai;
 
+import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.LinkedList;
+import java.util.List;
+import multinet.core.Synapse;
 import multinet.net.NeuralNet;
 import multinet.net.Neuron;
 import multinet.net.NeuronType;
-import multinet.net.ThresholdType;
 import multinet.net.UpdateWeightGil;
 import multinet.net.genetic.Encoding;
 import multinet.net.genetic.EncodingGenerator;
@@ -25,14 +27,15 @@ public class NeuralNetGenome extends Genome {
 
     @Override
     public Evaluable decode() {
+        List<Integer> inputs = new ArrayList<Integer>();
+        List<Integer> outputs = new ArrayList<Integer>();
         NeuralNet net = new NeuralNet(new UpdateWeightGil());
-        net.setPlasticityEnabled(true);
         Encoding global = getChromossome(0);
         
-        net.inputRest = global.getAsFloat(0, -100f, 100f);
-        net.weightGain = global.getAsFloat(1, -100, 100);
-        net.outputGain = global.getAsFloat(2, 0.0f, 1.0f);
-        net.setLearningRate(global.getAsFloat(2, 0.002f, 1.0f));
+        net.setDouble("inputrest", (double)global.getAsFloat(0, -100f, 100f));
+        net.setDouble("weightgain", (double)global.getAsFloat(1, -100, 100));
+        net.setDouble("outputgain", (double)global.getAsFloat(2, 0.0f, 1.0f));
+        net.setDouble("learningrate", (double)global.getAsFloat(2, 0.002f, 1.0f));
         Encoding body = getChromossome(1);
         Encoding amp = null;
         Encoding shift  = null;
@@ -93,45 +96,40 @@ public class NeuralNetGenome extends Genome {
             Neuron ne;
             //System.out.println(proto.ID);
             if (proto.ID == 0) {
-                int netid = net.addCell(NeuronType.INPUT);
-                ne = net.getNeuron(netid);
-                proto.ID = netid;
+                ne = net.createNeuron();
+                ne.setType(NeuronType.INPUT);
+                proto.ID = ne.getID();
+                inputs.add(ne.getID());
             } else if (proto.ID == 1) {
-                int netid = net.addCell(NeuronType.OUTPUT);
-                ne = net.getNeuron(netid);
-                proto.ID = netid;
+                ne = net.createNeuron();
+                ne.setType(NeuronType.NORMAL);
+                proto.ID = ne.getID();
+                outputs.add(ne.getID());
             } else /*if (proto.ID < 43)*/ {
-                int netid = net.addCell(NeuronType.NORMAL);
-                ne = net.getNeuron(netid);
-                proto.ID = netid;
+                ne = net.createNeuron();
+                ne.setType(NeuronType.OUTPUT);
+                proto.ID = ne.getID();
             } /*else  {
                 int netid = net.addCell(NeuronType.MODULATORY);
                 ne = net.getNeuron(netid);
                 proto.ID = netid;
             }*/
-            ne.setGain(proto.value);
+            ne.setDouble("gain", (double)proto.value);
             ne.setTimeConstant(proto.value);
             if (ne.getType() != NeuronType.OUTPUT) {
-                ne.setGain(1.0f);
+                ne.setDouble("gain", 1.0);
             }
-            ne.setLearningRate(proto.learningRate);
-            ne.setLearningMethod(proto.learningMethod);
-            ne.setOutputThreshold(proto.amp);
-            ne.setDouble("amp", proto.amp);
-            ne.setDouble("shift", proto.shift);
+            ne.setDouble("leanringrate", (double)proto.learningRate);
+            ne.setInteger("method", proto.learningMethod);
+            ne.setDouble("amp", (double)proto.amp);
+            ne.setDouble("shift", (double)proto.shift);
             
-            if (proto.shift >= 0.0) {
-                ne.setThresholdRule(ThresholdType.MAX);
-            } else {
-                ne.setThresholdRule(ThresholdType.MIN);
-            }
-            
-            ne.setBias(0.0);
+            ne.setDouble("bias", 0.0);
         }
         
-        net.prepare(-10, 10);
-        
-        if (net.getInputSize() != INPUTS || net.getOutputSize() != OUTPUTS) {
+        net.setObject("input", inputs);
+        net.setObject("output", outputs);
+        if (inputs.size() != INPUTS || outputs.size() != OUTPUTS) {
             return null;
         }
         
@@ -147,19 +145,20 @@ public class NeuralNetGenome extends Genome {
                 BitSet b1 = ti.binary;
                 BitSet b2 = tj.binary;
                 int eb = countEquals(b1, b2, 32);
-                double w = 0.0f;
+                double w;
                 //if ((eb / 2) % 3 != 0) {
                    // w = 100.0f * ((eb * (in + out)) / (24.0f)) - 50.0f;
-                    w = ((eb * (in + out)) / (24.0f));
+                w = ((eb * (in + out)) / (24.0f));
                 //}
-
-                net.setPlasticity(ni.ID, nj.ID, w);
+                Synapse synapse = net.createSynapse(ni.ID, nj.ID, Math.random() * 100 - 50);
+                synapse.setDouble("plasticity", w);
 //                net.setAmp(ni.ID, nj.ID, (ti.amp+tj.amp) * 0.5f);
 //                net.setShift(ni.ID, nj.ID, (ti.shift + tj.shift) * 0.5f);
 //                net.setWeight(ni.ID, nj.ID, w);                
             }
         }
         
+        net.setDouble("updaterate", 0.0);
         
         return net;
     }

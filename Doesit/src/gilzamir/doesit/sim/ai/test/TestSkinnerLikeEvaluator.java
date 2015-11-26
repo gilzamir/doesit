@@ -3,6 +3,7 @@ package gilzamir.doesit.sim.ai.test;
 import gilzamir.doesit.sim.ai.NeuralNetGenetic;
 import gilzamir.doesit.sim.ai.NeuralNetGenome;
 import java.util.Scanner;
+import multinet.core.Synapse;
 import multinet.net.NeuralNet;
 import multinet.net.NeuralNetEvent;
 import multinet.net.NeuralNetListener;
@@ -14,9 +15,9 @@ public class TestSkinnerLikeEvaluator {
         NeuralNetGenetic genetic = new NeuralNetGenetic(100);
         genetic.setCrossoverProbability(0.9f);
         genetic.setMutationProbability(0.008f);
-       
+               
         NeuralNetGenome.INPUTS = 4;
-        NeuralNetGenome.OUTPUTS = 3;
+        NeuralNetGenome.OUTPUTS = 2;
         NeuralNetGenome.PROCESSING = 20;
         
         SkinnerLikeEvaluator ev = new SkinnerLikeEvaluator();
@@ -38,7 +39,11 @@ public class TestSkinnerLikeEvaluator {
             System.out.println("No viable organism!!!");
             System.exit(0);
         }
-        net.randomizeMatrix(net.getWeight(), -50, 50);
+
+        for (Synapse syn : net.getSynapses().values()) {
+            syn.setIntensity(Math.random() * 100 - 50);
+        }
+        
      
         System.out.println(net.toString());
         net.setListener(new NeuralNetListener() {
